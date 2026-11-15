@@ -7,7 +7,7 @@ export class GitHub {
     this.queue = Promise.resolve();
   }
   async req(path, { method = 'GET', body, raw = false } = {}) {
-    const url = path.startsWith('http') ? path : `${this.api}/repos/${this.owner}/${this.repo}/${path}`;
+    const url = path.startsWith('http') ? path : `${this.api}/repos/${this.owner}/${this.repo}${path ? '/' + path : ''}`;
     const r = await fetch(url, {
       method,
       cache: 'no-store',
