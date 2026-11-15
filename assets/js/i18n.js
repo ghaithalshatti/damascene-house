@@ -91,7 +91,7 @@ export const STRINGS = {
     publish: 'حفظ ونشر', publish_local: 'حفظ', published: 'تم النشر ✓ سيعمل الموقع خلال دقيقة تقريباً',
     links: 'الروابط', link_menu: 'رابط القائمة', link_admin: 'رابط لوحة الإدارة', copied: 'تم النسخ',
     s_qr: 'رموز QR للطاولات', base_url: 'رابط الموقع', qr_generate: 'إنشاء الرموز', print: 'طباعة', qr_general: 'رمز عام (بدون طاولة)',
-    scan_menu: 'امسح الرمز لعرض القائمة', download_png: 'تحميل PNG', token_required: 'أدخل رمز الوصول أولاً',
+    scan_menu: 'امسح الرمز لعرض القائمة', download_png: 'تحميل PNG', token_required: 'أدخل رمز الوصول أولاً', fb_err_rules: 'تم تسجيل الدخول، لكن قواعد Firestore ترفض: انسخ القواعد أعلاه بعد كتابة بريد الطاقم، والصقها في Firestore ← Rules ← Publish، وانتظر دقيقة.', fb_err_login: 'بريد الطاقم أو كلمة سره غير صحيحة (Authentication ← Users).', fb_err_method: 'فعّل Email/Password في Authentication ← Sign-in method.', fb_err_config: 'إعدادات firebaseConfig غير صحيحة: الصقها من جديد.', fb_err_net: 'تعذّر الوصول إلى Firebase: تحقق من الإنترنت.', token_format: 'الرمز غير مكتمل: يجب أن يبدأ بـ github_pat_ وبدون فراغات. انسخه كاملاً من GitHub.', token_bad: 'GitHub رفض الرمز (401): قد يكون منسوخاً ناقصاً أو محذوفاً أو منتهياً. أنشئ رمزاً جديداً والصقه.', token_no_repo: 'الرمز لا يملك صلاحية على هذا المستودع (404): تأكد من اختياره في Repository access.',
     pw_required_first: 'يجب تعيين كلمة سر لصاحب المطعم عند النشر لأول مرة.', fill_github: 'أكمل بيانات GitHub',
   },
   en: {
@@ -179,7 +179,7 @@ export const STRINGS = {
     publish: 'Save & publish', publish_local: 'Save', published: 'Published ✓ the site will update in about a minute',
     links: 'Links', link_menu: 'Menu link', link_admin: 'Dashboard link', copied: 'Copied',
     s_qr: 'Table QR codes', base_url: 'Site URL', qr_generate: 'Generate codes', print: 'Print', qr_general: 'General code (no table)',
-    scan_menu: 'Scan to view the menu', download_png: 'Download PNG', token_required: 'Enter the access token first',
+    scan_menu: 'Scan to view the menu', download_png: 'Download PNG', token_required: 'Enter the access token first', fb_err_rules: 'Signed in, but Firestore rules deny access: copy the rules above after entering the staff email, paste them in Firestore → Rules → Publish, then wait a minute.', fb_err_login: 'Wrong staff email or password (Authentication → Users).', fb_err_method: 'Enable Email/Password in Authentication → Sign-in method.', fb_err_config: 'Invalid firebaseConfig: paste it again.', fb_err_net: 'Could not reach Firebase: check the connection.', token_format: 'Incomplete token: it must start with github_pat_ and contain no spaces. Copy it in full from GitHub.', token_bad: 'GitHub rejected the token (401): it may be partially copied, deleted or expired. Create a new one and paste it.', token_no_repo: 'The token has no access to this repository (404): make sure it is selected under Repository access.',
     pw_required_first: 'An owner password is required on the first publish.', fill_github: 'Complete the GitHub details',
   },
 };

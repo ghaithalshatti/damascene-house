@@ -62,7 +62,7 @@ function render() {
       <section class="panel"><div class="panel__title"><span class="num-badge">1</span>${esc(t('s_github'))}</div><div class="stack">
         <div class="grid2">${field(t('owner'), input('owner', g.owner, 'dir="ltr" autocomplete="off" placeholder="username"'))}${field(t('repo'), input('repo', g.repo, 'dir="ltr" autocomplete="off" placeholder="restaurant-name"'))}</div>
         <div class="grid2">${field(t('branch'), input('branch', g.branch || 'main', 'dir="ltr"'))}
-          ${field(t('token'), `<input class="input" type="password" name="token" dir="ltr" autocomplete="off" placeholder="github_pat_…">`)}</div>
+          ${field(t('token'), `<input class="input" type="password" name="token" dir="ltr" autocomplete="new-password" spellcheck="false" placeholder="github_pat_…">`)}</div>
         <p class="hint">${esc(t('token_hint'))}</p>
         <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><button type="button" class="btn btn--outline" id="testBtn">${ICONS.github}${esc(t('test_connection'))}</button><span class="status" id="ghStatus"></span></div>
       </div></section>
@@ -199,9 +199,10 @@ function bind() {
     const st = document.getElementById('fbStatus');
     st.className = 'status'; st.innerHTML = '<span class="spinner"></span>';
     try { readForm(); if (!fbEnabled(S.config)) throw new Error(t('fb_need_config')); await ensureFbStaff(true); await tableKeys(S.config, 1, 1); st.className = 'status ok'; st.innerHTML = `${ICONS.check}${esc(t('fb_ok'))}`; }
-    catch (e) { console.error(e); st.className = 'status err'; st.textContent = e.code || e.message; }
+    catch (e) { console.error(e); st.className = 'status err'; const k = FB_ERR[e.code]; st.textContent = k ? `${t(k)} (${e.code})` : (e.code || e.message); }
   };
 }
+const FB_ERR = { 'permission-denied': 'fb_err_rules', 'auth/invalid-credential': 'fb_err_login', 'auth/wrong-password': 'fb_err_login', 'auth/user-not-found': 'fb_err_login', 'auth/invalid-email': 'fb_err_login', 'auth/operation-not-allowed': 'fb_err_method', 'auth/configuration-not-found': 'fb_err_method', 'auth/invalid-api-key': 'fb_err_config', 'auth/api-key-not-valid.-please-pass-a-valid-api-key.': 'fb_err_config', 'auth/network-request-failed': 'fb_err_net', 'unavailable': 'fb_err_net' };
 function parseFirebase(text) {
   const get = (k) => (String(text || '').match(new RegExp(`["']?${k}["']?\\s*:\\s*["']([^"']+)["']`)) || [])[1] || '';
   return { apiKey: get('apiKey'), authDomain: get('authDomain'), projectId: get('projectId'), appId: get('appId') };
@@ -278,6 +279,7 @@ async function testConnection() {
   const token = f.token.value.trim();
   if (!S.config.github.owner || !S.config.github.repo) { st.className = 'status err'; st.textContent = t('fill_github'); return null; }
   if (!token) { st.className = 'status err'; st.textContent = t('token_required'); return null; }
+  if (!/^(github_pat_|ghp_)[A-Za-z0-9_]+$/.test(token)) { st.className = 'status err'; st.textContent = t('token_format'); return null; }
   btn.disabled = true; st.className = 'status'; st.innerHTML = `<span class="spinner"></span>`;
   try {
     const gh = await connectGH(token);
@@ -291,7 +293,7 @@ async function testConnection() {
     const st2 = document.getElementById('ghStatus'); st2.className = 'status ok'; st2.innerHTML = `${ICONS.check}${esc(t('connected'))}`;
     return gh;
   } catch (e) {
-    st.className = 'status err'; st.textContent = e.message;
+    st.className = 'status err'; st.textContent = e.status === 401 ? t('token_bad') : e.status === 404 ? t('token_no_repo') : e.message;
     return null;
   } finally { btn.disabled = false; }
 }
