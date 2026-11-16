@@ -29,7 +29,8 @@
   },
   "theme": {
     "id": "ocean",
-    "primary": "#0e6f8f"
+    "primary": "#0e6f8f",
+    "style": "glass"
   },
   "currency": {
     "ar": "ل.س",
