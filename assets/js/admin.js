@@ -2,7 +2,7 @@
 import {
   loadSite, fetchJSON, isRepoConfigured, normalizeConfig, normalizeMenu, saveDraft, initLang, setLang, getLang,
   t, tx, esc, imgSrc, applyTheme, formatPrice, uid, normalizeSearch, ICONS, TAGS, ls,
-  toast, openSheet, closeSheet, confirmDialog, withMeta } from './core.js';
+  toast, openSheet, closeSheet, confirmDialog, withMeta, checkOrder } from './core.js';
 import { GitHub, toJSONText } from './github.js';
 import { decryptSecret, encryptSecret, cryptoAvailable, isStrongPassword } from './crypto.js';
 import { compressImage, blobToDataURL } from './image.js';
@@ -577,7 +577,7 @@ async function renderToday() {
   try { const day = new Date(); day.setDate(day.getDate() - A.dayOffset); reqs = await dayRequests(A.config, day); }
   catch (e) { body.innerHTML = `<div class="empty">${ICONS.alert}<p>${esc(e.code || e.message)}</p></div>`; return; }
   const orders = reqs.filter((r) => r.type === 'order');
-  const sales = orders.reduce((a, o) => a + (o.total || 0), 0);
+  const sales = orders.reduce((a, o) => a + checkOrder(o, A.menu, A.config).total, 0); // re-priced from the menu
   const calls = reqs.length - orders.length;
   const card = (cls, ic, val, key) => `<div class="stat stat--${cls}"><span class="stat__ic">${ICONS[ic]}</span><div><b class="num">${esc(String(val))}</b><small>${esc(t(key))}</small></div></div>`;
   const qty = new Map();

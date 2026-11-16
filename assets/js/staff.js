@@ -1,14 +1,14 @@
 // Staff screen: live orders, waiter calls and bill requests for today.
-import { loadSite, initLang, setLang, getLang, t, tx, esc, applyTheme, formatPrice, ICONS, ls, toast } from './core.js';
+import { loadSite, initLang, setLang, getLang, t, tx, esc, applyTheme, formatPrice, ICONS, ls, toast, checkOrder } from './core.js';
 import { fbEnabled, currentStaff, staffSignIn, staffSignOut, watchToday, setStatus, settleTable } from './fb.js';
 
 const app = document.getElementById('app');
-const S = { config: null, docs: [], filter: 'all', showDone: false, sound: ls.get('rm:staffSound', true), unsub: null, first: true, fresh: new Set(), audio: null, error: false };
+const S = { config: null, menu: null, docs: [], filter: 'all', showDone: false, sound: ls.get('rm:staffSound', true), unsub: null, first: true, fresh: new Set(), audio: null, error: false };
 const TYPE_IC = { order: 'receipt', waiter: 'bell', bill: 'receipt' };
 const fmt = (n) => formatPrice(n, S.config);
 
 async function boot() {
-  try { S.config = (await loadSite()).config; }
+  try { ({ config: S.config, menu: S.menu } = await loadSite()); }
   catch (e) { app.innerHTML = `<div class="login"><div class="login__card"><p class="err-msg">${esc(e.message)}</p></div></div>`; return; }
   applyTheme(S.config, { admin: true });
   initLang(S.config);
@@ -57,7 +57,7 @@ async function start(gesture) {
   renderShell(gesture);
   keepAwake();
   await listen();
-  if (!S.tick) S.tick = setInterval(renderList, 30000); // refresh "x min ago"
+  if (!S.tick) S.tick = setInterval(() => { renderList(); refreshMenu(); }, 30000); // refresh "x min ago" (+ the menu every 5 min)
 }
 
 // Live listener that heals itself: on any error it re-subscribes with back-off (2s, 4s, 8s … 30s),
@@ -129,15 +129,30 @@ const ago = (ts) => { const m = Math.floor((Date.now() - ts) / 60000); return m 
 const tableLabel = (n) => t('table', { n });
 // Unpaid orders of a table today (for bill requests).
 const tableOrders = (table) => S.docs.filter((d) => d.type === 'order' && d.table === table && !d.paid);
+// Orders re-priced from the menu (the price a phone sends is never trusted).
+const checked = (o) => checkOrder(o, S.menu, S.config);
+// Keeps the menu fresh (the owner may change prices while this screen stays open), and re-checks
+// right away when an order doesn't match, so a just-published price change isn't flagged.
+let menuAt = Date.now();
+async function refreshMenu(force = false) {
+  if (!force && Date.now() - menuAt < 5 * 60e3) return;
+  if (force && Date.now() - menuAt < 30e3) return;
+  menuAt = Date.now();
+  try { S.menu = (await loadSite()).menu; renderList(); } catch {}
+}
 
 function renderList() {
   const list = document.getElementById('list'); if (!list) return;
   const active = S.docs.filter((d) => d.status !== 'done');
   const count = (f) => active.filter((d) => f === 'all' || d.type === f).length;
   document.getElementById('filters').innerHTML = [['all', 'f_all', 'list'], ['order', 'f_order', 'receipt'], ['waiter', 'f_waiter', 'bell'], ['bill', 'f_bill', 'receipt']]
-    .map(([f, key, ic]) => `<button class="tab ${S.filter === f ? 'active' : ''}" data-f="${f}">${ICONS[ic]}${esc(t(key))}${count(f) ? `<span class="tab__n num">${count(f)}</span>` : ''}</button>`).join('');
+    .map(([f, key, ic]) => `<button class="tab ${S.filter === f ? 'active' : ''}" data-f="${f}">${ICONS[ic]}${esc(t(key))}${count(f) ? `<span class="tab__n num">${count(f)}</span>` : ''}</button>`).join('')
+    + `<button class="tab ${S.filter === 'log' ? 'active' : ''}" data-f="log">${ICONS.clock}${esc(t('f_log'))}</button>`;
   const newN = S.docs.filter((d) => (d.status || 'new') === 'new').length;
   document.title = `${newN ? `(${newN}) ` : ''}${t('staff_title')} · ${tx(S.config.restaurant.name)}`;
+  const doneBox = document.getElementById('showDone')?.closest('label');
+  if (doneBox) doneBox.hidden = S.filter === 'log';
+  if (S.filter === 'log') { list.innerHTML = (S.error ? `<div class="banner" style="grid-column:1/-1;border-radius:14px">${esc(t('conn_error'))}</div>` : '') + logHTML(); return; }
   const rank = { new: 0, preparing: 1, done: 2 };
   const shown = S.docs
     .filter((d) => (S.filter === 'all' || d.type === S.filter) && (S.showDone || d.status !== 'done'))
@@ -146,20 +161,59 @@ function renderList() {
     + (shown.length ? shown.map(cardHTML).join('') : `<div class="empty" style="grid-column:1/-1">${ICONS.chef}<b>${esc(t('no_requests'))}</b><p>${esc(t('no_requests_sub'))}</p></div>`);
 }
 
+// Today's log: every request of the day, grouped by table, with what is paid and what is still due.
+function logHTML() {
+  if (!S.docs.length) return `<div class="empty" style="grid-column:1/-1">${ICONS.receipt}<b>${esc(t('log_empty'))}</b></div>`;
+  const total = (o) => checked(o).total;
+  const sum = (list) => list.reduce((a, o) => a + total(o), 0);
+  const orders = S.docs.filter((d) => d.type === 'order');
+  const all = sum(orders); const paid = sum(orders.filter((o) => o.paid));
+  const stat = (cls, ic, val, key) => `<div class="stat stat--${cls}"><span class="stat__ic">${ICONS[ic]}</span><div><b class="num">${esc(String(val))}</b><small>${esc(t(key))}</small></div></div>`;
+  const time = (ts) => new Date(ts).toLocaleTimeString(getLang() === 'ar' ? 'ar-SY' : 'en-GB', { hour: '2-digit', minute: '2-digit' });
+  const groups = new Map();
+  for (const d of S.docs) {
+    const g = groups.get(d.table) || { table: d.table, orders: [], calls: 0, last: 0 };
+    if (d.type === 'order') g.orders.push(d); else g.calls++;
+    g.last = Math.max(g.last, d.ts || 0);
+    groups.set(d.table, g);
+  }
+  const cards = [...groups.values()].sort((a, b) => b.last - a.last).map((g) => {
+    const gAll = sum(g.orders); const due = gAll - sum(g.orders.filter((o) => o.paid));
+    const rows = [...g.orders].sort((a, b) => a.ts - b.ts).map((o) => {
+      const st = o.paid ? 'done' : o.status || 'new';
+      const items = checked(o).lines.map((i) => `${i.qty}× ${esc(i.name)}${i.size ? ` (${esc(i.size)})` : ''}`).join(getLang() === 'ar' ? '، ' : ', ');
+      return `<li><time class="num">${esc(time(o.ts))}</time><span>${items}</span><b class="num">${esc(fmt(total(o)))}</b>
+        <small class="st st--${st}">${esc(o.paid ? t('log_paid') : t(`s_${st}`))}</small></li>`;
+    }).join('');
+    const badge = !g.orders.length ? '' : due > 0 ? `<span class="st st--new">${esc(t('log_unpaid'))}</span>` : `<span class="st st--done">${esc(t('log_paid'))}</span>`;
+    return `<article class="tk tk--log ${due > 0 ? 'tk--due' : ''}">
+      <div class="tk__row"><b class="tk__table">${esc(tableLabel(g.table))}</b>${badge}</div>
+      ${rows ? `<ul class="log-items">${rows}</ul>` : ''}
+      ${g.calls ? `<p class="log-calls">${ICONS.bell}${esc(t('log_calls', { n: g.calls }))}</p>` : ''}
+      ${g.orders.length ? `<div class="tk__total"><span>${esc(t('total'))}</span><b class="num">${esc(fmt(gAll))}</b></div>` : ''}
+      ${due > 0 && due < gAll ? `<div class="tk__total"><span>${esc(t('log_due'))}</span><b class="num">${esc(fmt(due))}</b></div>` : ''}
+    </article>`;
+  }).join('');
+  return `<div class="stats log-stats">${stat('total', 'receipt', orders.length, 't_orders')}${stat('on', 'chart', fmt(all), 't_sales')}${stat('cats', 'check', fmt(paid), 'log_paid')}${stat('off', 'clock', fmt(all - paid), 'log_unpaid')}</div>${cards}`;
+}
+
 function cardHTML(d) {
   const st = d.status || 'new';
   let body = '';
   let actions = '';
   if (d.type === 'order') {
-    body = `<ul class="tk__items">${(d.items || []).map((i) => `<li><b class="num">${i.qty}×</b><span>${esc(i.name)}${i.size ? ` <small>— ${esc(i.size)}</small>` : ''}${i.note ? `<em>✎ ${esc(i.note)}</em>` : ''}</span></li>`).join('')}</ul>
-      <div class="tk__total"><span>${esc(t('total'))}</span><b class="num">${esc(fmt(d.total))}</b></div>`;
+    const c = checked(d);
+    if (!c.ok) refreshMenu(true);
+    body = `<ul class="tk__items">${c.lines.map((i) => `<li><b class="num">${i.qty}×</b><span>${esc(i.name)}${i.size ? ` <small>— ${esc(i.size)}</small>` : ''}${i.ok ? '' : ` <small class="tk__bad">⚠ ${esc(i.known ? t('price_sent', { p: fmt(i.sent) }) : t('item_unknown'))}</small>`}${i.note ? `<em>✎ ${esc(i.note)}</em>` : ''}</span></li>`).join('')}</ul>
+      ${c.ok ? '' : `<p class="tk__warn">${ICONS.alert}${esc(t('price_mismatch', { sent: fmt(c.sentTotal) }))}</p>`}
+      <div class="tk__total"><span>${esc(t('total'))}</span><b class="num">${esc(fmt(c.total))}</b></div>`;
     if (st === 'new') actions = `<button class="btn btn--ghost btn--sm" data-act="preparing" data-id="${d.id}">${ICONS.chef}${esc(t('a_prepare'))}</button>`;
     if (st !== 'done') actions += `<button class="btn btn--primary btn--sm" data-act="done" data-id="${d.id}">${ICONS.check}${esc(t('a_done'))}</button>`;
   } else if (d.type === 'waiter') {
     body = `<p class="tk__msg">${ICONS.bell}${esc(t('waiter_msg'))}</p>`;
     if (st !== 'done') actions = `<button class="btn btn--primary btn--sm" data-act="done" data-id="${d.id}">${ICONS.check}${esc(t('a_done'))}</button>`;
   } else {
-    const sum = tableOrders(d.table).reduce((a, o) => a + (o.total || 0), 0);
+    const sum = tableOrders(d.table).reduce((a, o) => a + checked(o).total, 0);
     body = `<p class="tk__msg">${ICONS.receipt}${esc(t('bill_msg'))}</p>
       <div class="tk__total"><span>${esc(t('table_total'))}</span><b class="num">${esc(fmt(sum || d.total || 0))}</b></div>`;
     if (st !== 'done') actions = `<button class="btn btn--primary btn--sm" data-act="paid" data-id="${d.id}" data-table="${esc(d.table)}">${ICONS.check}${esc(t('a_paid'))}</button>`;

@@ -282,3 +282,29 @@ export function withMeta(html, cfg, base) {
   h = h.includes('<!--meta-->') ? h.replace(/<!--meta-->[\s\S]*?<!--\/meta-->/, block) : h.replace(/<meta name="description"[^>]*>/, block);
   return h;
 }
+
+// Prices are never trusted from the customer's phone: an order is re-priced from the published menu
+// (by item id + size). Lines whose sent price differs, or whose item is no longer on the menu, are flagged.
+export function checkOrder(order, menu, cfg) {
+  const L = cfg?.languages?.default || 'ar';
+  const pick = (o) => (o ? o[L] || o.ar || o.en || '' : '');
+  const byId = new Map((menu?.items || []).map((i) => [i.id, i]));
+  let total = 0; let ok = true;
+  const lines = (order.items || []).map((l) => {
+    const qty = Math.max(1, Math.min(99, parseInt(l.qty, 10) || 1));
+    const it = byId.get(l.id);
+    let size = null;
+    if (it && it.sizes.length) {
+      size = Number.isInteger(l.si) && it.sizes[l.si] ? it.sizes[l.si]
+        : it.sizes.find((s) => l.size && (s.name.ar === l.size || s.name.en === l.size)) || null;
+    }
+    const unit = !it ? null : it.sizes.length ? (size ? size.price : null) : it.price;
+    const sent = Number(l.price) || 0;
+    const lineOk = unit !== null && Math.abs(unit - sent) < 0.005;
+    if (!lineOk) ok = false;
+    const price = unit !== null ? unit : sent;
+    total += price * qty;
+    return { qty, name: it ? pick(it.name) : String(l.name || ''), size: size ? pick(size.name) : String(l.size || ''), note: String(l.note || ''), price, sent, ok: lineOk, known: unit !== null };
+  });
+  return { lines, total, ok, sentTotal: Number(order.total) || 0 };
+}

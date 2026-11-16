@@ -474,7 +474,7 @@ async function sendOrder(btn) {
   try {
     const items = S.cart.map((l) => {
       const it = findItem(l.itemId);
-      return { id: it.id, name: tlDefault(it.name), size: l.size > -1 ? tlDefault(it.sizes[l.size].name) : '', qty: l.qty, price: unitPrice(it, l.size), note: l.note || '' };
+      return { id: it.id, si: l.size, name: tlDefault(it.name), size: l.size > -1 ? tlDefault(it.sizes[l.size].name) : '', qty: l.qty, price: unitPrice(it, l.size), note: l.note || '' };
     });
     const total = cartTotal();
     const id = await sendRequest(S.config, { type: 'order', table: TABLE, k: KEY, items, total });
