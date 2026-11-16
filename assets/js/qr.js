@@ -1,7 +1,7 @@
 // Table QR codes, shared by the setup page and the owner dashboard.
 // A table's code only encodes "<site>/?t=<number>", so existing codes never change when tables are added.
 import qrcode from '../vendor/qrcode.mjs';
-import { t, esc, imgSrc, ICONS } from './core.js';
+import { t, esc, imgSrc, ICONS, toast } from './core.js';
 import { getTheme, themeIdOf } from './themes.js';
 
 const field = (label, inner) => `<label class="field"><span>${esc(label)}</span>${inner}</label>`;
@@ -58,7 +58,7 @@ export function bindQr(root, { getConfig, getBase, pending = {}, onCount, getKey
     let { from, to } = targets();
     if (getKeys) { // live ordering: each table's QR carries its secret key
       btn.disabled = true;
-      try { keys = { ...keys, ...((await getKeys(from, to)) || {}) }; } catch (e) { console.error(e); btn.disabled = false; return; }
+      try { keys = { ...keys, ...((await getKeys(from, to)) || {}) }; } catch (e) { console.error(e); btn.disabled = false; if (e.message !== 'auth') toast(e.code || e.message, 'err', 5000); return; }
       btn.disabled = false;
     }
     const { list, count } = targets();
