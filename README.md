@@ -115,25 +115,34 @@
 - بعد دقيقة تقريباً: `https://USERNAME.github.io/REPO/`
 
 ### 3) GitHub Token: صلاحية الحفظ من الموقع
-GitHub ← **Settings ← Developer settings ← Personal access tokens ← Fine-grained tokens ← Generate new token**
-- **Repository access:** Only select repositories ← اختر مستودع المطعم فقط
-- **Permissions ← Repository permissions ← Contents:** Read and write
+افتح مباشرة: `https://github.com/settings/personal-access-tokens/new`
+(أو: Settings ← Developer settings ← Personal access tokens ← **Fine-grained tokens** ← Generate new token)
+- **Token name:** اسم يعرّفك به، مثلاً `damascene-house-menu`
 - **Expiration:** مدة الاشتراك مع المطعم (مثلاً سنة)
-- انسخ الـ token فوراً (`github_pat_…`) — يظهر مرة واحدة.
+- **Repository access:** Only select repositories ← اختر مستودع المطعم (يمكن اختيار أكثر من مستودع لنفس الـ token)
+- **Permissions ← Repositories ← Add permissions ← Contents:** Read and write
+  (`Metadata: Read-only` تُضاف تلقائياً وهي إلزامية — اتركها؛ تبويب Account يبقى 0)
+- **Generate token** ← انسخه بزر النسخ فوراً (`github_pat_…`) — يظهر مرة واحدة.
+
+> ⚠️ ليست صفحة **GitHub Apps**؛ المطلوب **Personal access token**.
+> ⚠️ **Regenerate** أو حذف الـ token يُبطل القديم فوراً ← افتح صفحة الإعداد وانشر بالـ token الجديد مع كتابة كلمة سر صاحب المطعم (يمكن نفسها)، وإلا لن يستطيع المدير الدخول.
 
 ### 4) Firebase: الطلبات المباشرة (اختياري)
 بدونها يعمل كل شيء ما عدا: إرسال الطلب، نداء النادل، طلب الحساب، شاشة الطاقم، وطلبات اليوم.
 
-1. **console.firebase.google.com ← Create a project** (أوقف Google Analytics).
-2. **Build ← Firestore Database ← Create database**
-   - Location: **eur3 (Europe)** — لا يمكن تغييره لاحقاً
-   - **Start in production mode**
-3. **Build ← Authentication ← Get started**
-   - Sign-in method ← **Email/Password** ← Enable ← Save
+1. **console.firebase.google.com ← Create a project** ← اسم المشروع ← **أوقف Gemini in Firebase** و**Google Analytics** (لا حاجة لهما).
+2. **Databases & Storage ← Firestore ← Create database**
+   - Edition: **Standard**
+   - Database ID: اتركه `(default)` · Location: **eur3 (Europe)** أو أقرب منطقة أوروبية — لا يمكن تغييره لاحقاً (إن لم تظهر القائمة: حدّث الصفحة أو جرّب نافذة خفية أو VPN لهذه الخطوة فقط)
+   - **Start in production mode** ← Create (تجاهل Scheduled backups)
+   - لا تضغط Start collection: الموقع ينشئ `orders` و`tables` بنفسه.
+3. **Security ← Authentication ← Get started**
+   - Sign-in method ← **Email/Password** ← Enable (اترك Email link مطفأً) ← Save
    - Users ← **Add user**: إيميل الطاقم + كلمة سر (مثلاً `staff@damascene.com`) — الإيميل لا يلزم أن يكون حقيقياً
    - Settings ← **Authorized domains ← Add domain**: `USERNAME.github.io`
-4. **Firestore ← Rules**: الصق القواعد الجاهزة من صفحة الإعداد (قسم Firebase ← زر «نسخ») ← **Publish**
-5. **Project settings ⚙️ ← Your apps ← Web `</>`** ← سجّل التطبيق (بدون Hosting) ← انسخ كتلة `firebaseConfig` كاملة.
+4. **Project settings ⚙️ ← General ← Your apps ← Web `</>`** ← App nickname مثلاً `menu` ← **لا تعلّم Firebase Hosting** ← Register app ← انسخ كتلة `const firebaseConfig = {…};` كاملة ← Continue to console.
+5. في **صفحة الإعداد** قسم Firebase: الصق الكتلة + إيميل الطاقم وكلمة سره ← **نسخ القواعد**.
+6. **Firestore ← Rules** ← احذف الموجود (`allow read, write: if false`) ← الصق ← **Publish** (الزر يظهر فوق المحرر بعد اللصق؛ «Develop & Test» ليس المطلوب) ← انتظر دقيقة ← «اختبار Firebase» في صفحة الإعداد يجب أن ينجح.
 
 > لا حاجة لبطاقة دفع ولا لرقم جوال. حساب Google واحد يكفي لكل المطاعم: **مشروع Firebase جديد لكل مطعم**.
 
@@ -164,7 +173,7 @@ GitHub ← **Settings ← Developer settings ← Personal access tokens ← Fine
 | 4 | التفاصيل | اللغات (عربي+إنكليزي / عربي / إنكليزي)، اللغة الافتراضية، العملة، الهاتف، العنوان، الدوام | الحقول تُعرض حسب اللغات المختارة. |
 | 5 | الميزات | تفعيل سلة الطلب للزبون | عند إيقافها يصبح المنيو للعرض فقط. |
 | 6 | Firebase | الصق `firebaseConfig`، إيميل الطاقم، كلمة سر الطاقم | القواعد تُولَّد تلقائياً بإيميل الطاقم. «اختبار Firebase» يسجّل الدخول ويتأكد. **كلمة سر الطاقم لا تُحفظ.** |
-| 7 | كلمة سر صاحب المطعم | 10 أحرف على الأقل، حروف وأرقام | إلزامية عند أول نشر. اتركها فارغة لاحقاً للإبقاء على الحالية. |
+| 7 | كلمة سر صاحب المطعم | 10 أحرف على الأقل، حروف وأرقام | إلزامية عند أول نشر. بعدها **اتركها فارغة للإبقاء على الحالية** — تعديل الثيم أو أي إعداد لا يحتاجها. تُطلب فقط إذا تغيّر الـ token (اكتب نفس كلمة السر). |
 | 8 | القائمة الابتدائية | «ابدأ بقائمة فارغة» | يحذف البيانات التجريبية عند النشر. |
 | 9 | رموز QR | عدد الطاولات، من طاولة/إلى طاولة، رمز عام | طباعة A4 أو PNG. |
 
@@ -172,10 +181,12 @@ GitHub ← **Settings ← Developer settings ← Personal access tokens ← Fine
 - `data/config.json` — كل الإعدادات (بما فيها owner/repo وإعدادات Firebase العامة)
 - `data/auth.json` — الـ token **مشفّراً** بكلمة سر صاحب المطعم
 - `images/brand/…` — الشعار والغلاف إن وُجدا
+- `index.html` — اسم المطعم ووصفه وصورة الغلاف/الشعار في وسوم المعاينة (og)، فيظهر الرابط بشكل جميل عند مشاركته على واتساب وفيسبوك. لوحة المدير تحدّثها أيضاً عند تعديل معلومات المطعم.
 - `data/menu.json` فارغ إذا اخترت «ابدأ بقائمة فارغة»
 
 > صفحة الإعداد لا تحفظ الـ token. عند فتحها لاحقاً أدخله من جديد.
-> زر الحفظ بدون token = «حفظ» محلي على المتصفح فقط (للتجربة قبل الرفع).
+> **مطعم منشور:** الحفظ يحتاج الـ token دائماً، وبدونه تظهر رسالة «لم يُحفظ شيء». صفحة الإعداد تقرأ آخر إعدادات من المستودع مباشرة، فبعد الحفظ والتحديث تظهر اختياراتك فوراً (الزبائن يرونها بعد ~دقيقة).
+> **نسخة غير مربوطة بعد** (owner/repo فارغان): الحفظ بدون token يخزّن في المتصفح فقط للتجربة.
 
 ---
 
@@ -344,8 +355,19 @@ assets/
 - قبل الربط بـ GitHub: اللوحة وصفحة الإعداد تحفظان في المتصفح فقط، وتظهر التعديلات في المنيو على نفس الجهاز.
 - Firebase يعمل من `localhost` أيضاً.
 
-### ⚠️ مهم بعد الرفع
-الموقع نفسه يعمل commits (حفظ ونشر، تعديلات صاحب المطعم). **قبل أي `git push` من جهازك نفّذ `git pull`** وإلا ستحدث تعارضات أو تُمسح تعديلات المطعم.
+### ⚠️ رفع تعديلات الكود بعد النشر
+الموقع نفسه يعمل commits (حفظ ونشر، تعديلات صاحب المطعم)، لذلك **احفظ تعديلاتك بـ commit أولاً، ثم اجلب تعديلات GitHub، ثم ارفع**:
+```
+cd C:\wamp64\www\laravel\myapp\restaurant
+git add .
+git commit -m "وصف التعديل"
+git pull --rebase
+git push
+```
+- إذا ظهر `rejected (fetch first)` فأنت نسيت `git pull --rebase`.
+- إذا ظهر `cannot pull with rebase: You have unstaged changes` فأنت نسيت `git add` و`git commit` قبله.
+- إذا ظهر **conflict** توقّف ولا تكمل قبل حلّه.
+- تحذيرات `LF will be replaced by CRLF` عادية وتُتجاهل.
 
 ---
 
@@ -371,9 +393,15 @@ assets/
 | «تعذّر الإرسال» عند الزبون | QR قديم بدون مفتاح ← أعد توليد الرموز وطباعتها · أو القواعد لم تُنشر في Firestore |
 | «تم تأكيد طلبك» لكن لم يصل شيء للطاقم | الرابط بدون `k` (رابط عام أو `?t=4` مكتوب يدوياً) ← استخدم رابط البطاقة من «إنشاء الرموز» (زر 🔗 أو مسح QR) |
 | صفحة 404 عند كتابة رابط طاولة | نسيت `?` قبل `t` — الصحيح `/REPO/?t=4&k=…` |
+| «انقطع الاتصال» في شاشة الطاقم | تعيد الاتصال تلقائياً خلال ثوانٍ (وفور عودة الإنترنت)، والطلبات التي وصلت أثناء الانقطاع تظهر مع تنبيه ← لا حاجة للتحديث |
 | شاشة الطاقم لا تُصدر صوتاً | اضغط «تفعيل التنبيه الصوتي» وتأكد أن زر الصوت ليس مكتوماً |
 | `permission-denied` في الطاقم | إيميل الطاقم في القواعد يختلف عن إيميل الحساب ← انسخ القواعد من صفحة الإعداد وانشرها |
-| `git push` مرفوض | نفّذ `git pull` أولاً |
+| `git push` مرفوض | `git add .` ← `git commit` ← `git pull --rebase` ← `git push` |
+| «Failed to fetch» في اختبار الاتصال | انقطاع إنترنت أو إضافة في المتصفح تحجب `api.github.com` ← جرّب نافذة خفية |
+| «GitHub رفض الرمز (401)» في صفحة الإعداد | الـ token منسوخ ناقصاً، أو محذوف/مُعاد توليده، أو عبّأ المتصفح الخانة بكلمة سر محفوظة ← امسح الخانة والصق token صالحاً |
+| «لا يملك صلاحية الكتابة (403)» | الـ token لا يشمل هذا المستودع أو Contents ليست Read and write ← عدّل الـ token في GitHub (Repository access + Contents) |
+| «كلمة السر صحيحة لكن رمز GitHub لم يعد صالحاً» عند دخول المدير | تغيّر الـ token ← صفحة الإعداد ← الـ token الجديد + كلمة سر صاحب المطعم ← حفظ ونشر |
+| اخترت ثيماً/نمطاً ولم يتغيّر شيء | الحفظ تم بدون token (لم يُحفظ) أو لم تمرّ دقيقة ← احفظ بالـ token وحدّث بـ Ctrl+F5 |
 
 ---
 

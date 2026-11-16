@@ -2,8 +2,7 @@
 import {
   loadSite, fetchJSON, isRepoConfigured, normalizeConfig, normalizeMenu, saveDraft, initLang, setLang, getLang,
   t, tx, esc, imgSrc, applyTheme, formatPrice, uid, normalizeSearch, ICONS, TAGS, ls,
-  toast, openSheet, closeSheet, confirmDialog,
-} from './core.js';
+  toast, openSheet, closeSheet, confirmDialog, withMeta } from './core.js';
 import { GitHub, toJSONText } from './github.js';
 import { decryptSecret, encryptSecret, cryptoAvailable, isStrongPassword } from './crypto.js';
 import { compressImage, blobToDataURL } from './image.js';
@@ -73,7 +72,7 @@ function imgTag(path, alt = '') {
   const raw = A.gh && !/^(data:|blob:|https?:)/.test(path) ? A.gh.rawUrl(path) : '';
   return `<img src="${esc(pending || imgSrc(path))}" alt="${esc(alt)}" loading="lazy" ${raw ? `onerror="this.onerror=null;this.src='${esc(raw)}'"` : ''}>`;
 }
-const logoHTML = () => (A.config.restaurant.logo ? imgTag(A.config.restaurant.logo) : esc((tx(A.config.restaurant.name) || '•').replace(/^ال/, '').charAt(0)));
+const logoHTML = () => (A.config.restaurant.logo ? imgTag(A.config.restaurant.logo) : '');
 
 /* ---------- persistence ---------- */
 async function persist(message, { menu = false, config = false, add = [], remove = [], auth = null } = {}) {
@@ -89,6 +88,7 @@ async function persist(message, { menu = false, config = false, add = [], remove
   remove.filter((p) => p && p.startsWith('images/')).forEach((p) => files.push({ path: p, delete: true }));
   if (menu) { A.menu.updatedAt = new Date().toISOString(); files.push({ path: 'data/menu.json', text: toJSONText(A.menu) }); }
   if (config) files.push({ path: 'data/config.json', text: toJSONText(A.config) });
+  if (config) { const page = await A.gh.readText('index.html').catch(() => null); if (page) { const html = withMeta(page, A.config, new URL('../', location.href).href); if (html !== page) files.push({ path: 'index.html', text: html }); } }
   if (auth) files.push({ path: 'data/auth.json', text: toJSONText(auth) });
   setSaving(true);
   try {
@@ -119,7 +119,7 @@ function scheduleSave(msg) {
 function renderLogin(err = '') {
   const r = A.config.restaurant;
   app.innerHTML = `<div class="login"><form class="login__card" id="loginForm" autocomplete="on">
-    <div class="login__logo">${logoHTML()}</div>
+    ${A.config.restaurant.logo ? `<div class="login__logo">${logoHTML()}</div>` : ''}
     <h1>${esc(tx(r.name))}</h1>
     <p class="sub">${esc(t('login_sub'))}</p>
     <input type="text" name="username" value="${esc(A.config.github.repo)}" autocomplete="username" hidden>
@@ -163,7 +163,7 @@ function enterDashboard() {
   app.innerHTML = `
     <header class="adm-top"><div class="adm-wrap">
       <div class="adm-top__row">
-        <div class="adm-brand"><div class="adm-brand__logo" id="brandLogo">${logoHTML()}</div>
+        <div class="adm-brand"><div class="adm-brand__logo" id="brandLogo" ${A.config.restaurant.logo ? '' : 'hidden'}>${logoHTML()}</div>
           <div style="min-width:0"><b id="brandName">${esc(tx(A.config.restaurant.name))}</b><small>${esc(t('admin_title'))}</small></div></div>
         <div class="adm-actions">
           <a class="icon-btn" href="../" target="_blank" rel="noopener" title="${esc(t('view_menu'))}" aria-label="${esc(t('view_menu'))}">${ICONS.eye}</a>
@@ -188,7 +188,7 @@ function enterDashboard() {
   ({ items: renderItems, today: renderToday, categories: renderCategories, info: renderInfo, settings: renderSettings })[A.tab]();
 }
 const refreshBrand = () => {
-  const l = document.getElementById('brandLogo'); if (l) l.innerHTML = logoHTML();
+  const l = document.getElementById('brandLogo'); if (l) { l.innerHTML = logoHTML(); l.hidden = !A.config.restaurant.logo; }
   const n = document.getElementById('brandName'); if (n) n.textContent = tx(A.config.restaurant.name);
 };
 

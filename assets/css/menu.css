@@ -304,3 +304,20 @@ body:has(.dock) .foot { padding-bottom: calc(180px + env(safe-area-inset-bottom)
 .st--done { background: color-mix(in srgb, #2E9A55 15%, var(--surface)); color: #23793F; }
 @media (max-width: 360px) { .dock__btn { padding: 0 12px; font-size: 13px; height: 40px; } }
 @media (min-width: 1024px) { .dock { inset-inline: 28px auto; justify-content: flex-start; } .dock--up { bottom: calc(14px + env(safe-area-inset-bottom)); } }
+
+/* Item footer on narrow phones: the button shrinks instead of overflowing */
+.item-foot { min-width: 0; }
+.item-foot .btn { min-width: 0; gap: 8px; }
+.item-foot .btn #addLabel { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.item-foot .btn #addTotal { flex: none; }
+@media (max-width: 380px) {
+  .item-foot { gap: 8px; }
+  .item-foot .btn { padding: 0 12px; font-size: 14.5px; }
+  .item-foot .stepper button { width: 30px; height: 30px; }
+  .item-foot .stepper output { min-width: 22px; }
+}
+@media (max-width: 340px) {
+  .item-foot .btn { padding: 0 10px; font-size: 13.5px; gap: 6px; }
+  .item-foot .stepper { padding: 3px; gap: 2px; }
+  .item-foot .stepper button { width: 28px; height: 28px; }
+}
