@@ -56,22 +56,44 @@ function renderLogin(err = '') {
 async function start(gesture) {
   renderShell(gesture);
   keepAwake();
-  S.unsub?.();
-  S.unsub = await watchToday(S.config, onSnap, (err) => { console.error(err); S.error = true; renderList(); });
-  setInterval(renderList, 30000); // refresh "x min ago"
+  await listen();
+  if (!S.tick) S.tick = setInterval(renderList, 30000); // refresh "x min ago"
 }
+
+// Live listener that heals itself: on any error it re-subscribes with back-off (2s, 4s, 8s … 30s),
+// again as soon as the device is back online or the tab is shown, and rolls over to the new day at midnight.
+let retryT = 0, retryN = 0, dayT = 0;
+async function listen() {
+  clearTimeout(retryT);
+  S.unsub?.(); S.unsub = null;
+  try { S.unsub = await watchToday(S.config, onSnap, onErr); } catch (e) { onErr(e); return; }
+  clearTimeout(dayT);
+  const now = new Date(); const next = new Date(now); next.setHours(24, 0, 5, 0);
+  dayT = setTimeout(() => { S.seen = null; listen(); }, next - now);
+}
+function onErr(err) {
+  console.error(err);
+  S.error = true; renderList();
+  S.unsub?.(); S.unsub = null;
+  clearTimeout(retryT);
+  retryT = setTimeout(listen, Math.min(30000, 2000 * 2 ** retryN++));
+}
+const reconnect = () => { if (S.error && S.config) { retryN = 0; listen(); } };
+addEventListener('online', reconnect);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reconnect(); });
+
 function onSnap(snap) {
-  S.error = false;
+  S.error = false; retryN = 0;
   S.docs = snap.docs.map((d) => { const x = d.data(); return { id: d.id, ...x, ts: x.createdAt?.toMillis ? x.createdAt.toMillis() : Date.now() }; });
-  if (!S.first) {
-    const added = snap.docChanges().filter((c) => c.type === 'added' && (c.doc.data().status || 'new') === 'new');
-    if (added.length) {
-      added.forEach((c) => S.fresh.add(c.doc.id));
-      setTimeout(() => { added.forEach((c) => S.fresh.delete(c.doc.id)); renderList(); }, 9000);
-      ring();
-    }
+  // Ring only for requests not seen before — also catches ones that arrived while reconnecting, without re-ringing old ones.
+  const first = !S.seen; S.seen ||= new Set();
+  const added = snap.docs.filter((d) => !S.seen.has(d.id) && (d.data().status || 'new') === 'new');
+  snap.docs.forEach((d) => S.seen.add(d.id));
+  if (!first && added.length) {
+    added.forEach((d) => S.fresh.add(d.id));
+    setTimeout(() => { added.forEach((d) => S.fresh.delete(d.id)); renderList(); }, 9000);
+    ring();
   }
-  S.first = false;
   renderList();
 }
 
@@ -96,7 +118,7 @@ function renderShell(gesture) {
     </main>`;
   document.getElementById('snd').onclick = () => { S.sound = !S.sound; ls.set('rm:staffSound', S.sound); unlockAudio(); document.getElementById('snd').innerHTML = S.sound ? ICONS.sound : ICONS.mute; if (S.sound) beep(); };
   document.getElementById('lang')?.addEventListener('click', () => { setLang(getLang() === 'ar' ? 'en' : 'ar'); renderShell(true); renderList(); });
-  document.getElementById('out').onclick = async () => { S.unsub?.(); await staffSignOut(S.config); S.first = true; renderLogin(); };
+  document.getElementById('out').onclick = async () => { clearTimeout(retryT); clearTimeout(dayT); S.unsub?.(); S.unsub = null; await staffSignOut(S.config); S.seen = null; S.error = false; renderLogin(); };
   document.getElementById('unlock')?.addEventListener('click', (e) => { unlockAudio(); beep(); e.currentTarget.remove(); });
   document.getElementById('showDone').onchange = (e) => { S.showDone = e.target.checked; renderList(); };
   document.getElementById('filters').onclick = (e) => { const b = e.target.closest('[data-f]'); if (b) { S.filter = b.dataset.f; renderList(); } };
