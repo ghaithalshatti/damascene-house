@@ -450,13 +450,23 @@ function celebrate(title, sub) {
 
 /* ---------- live ordering (Firebase) ---------- */
 const tlDefault = (o) => { const L = S.config.languages.default || 'ar'; return o ? (o[L] || o.ar || o.en || '') : ''; };
+// This phone's requests at this table. Kept while the guest is seated: cleared as soon as the bill is
+// paid, or 4 hours after the last request, so the next guest at the table always starts clean.
 function loadMine() {
   const saved = ls.get(MINE_KEY);
-  S.mine = saved && saved.table === TABLE && Date.now() - saved.t < CART_TTL ? saved.list || [] : [];
+  const fresh = !!saved && saved.table === TABLE && (saved.k || '') === KEY && Date.now() - saved.t < CART_TTL;
+  S.mine = fresh ? saved.list || [] : [];
+  S.mineT = fresh ? saved.t : 0;
+  if (saved && !fresh) ls.del(MINE_KEY);
 }
-const saveMine = () => ls.set(MINE_KEY, { t: Date.now(), table: TABLE, list: S.mine });
+// touch = a new request was just sent (restarts the 4-hour window); status updates keep the original time.
+function saveMine(touch = false) {
+  if (touch || !S.mineT) S.mineT = Date.now();
+  if (!S.mine.length) { ls.del(MINE_KEY); S.mineT = 0; return; }
+  ls.set(MINE_KEY, { t: S.mineT, table: TABLE, k: KEY, list: S.mine });
+}
 const myOrders = () => S.mine.filter((x) => x.type === 'order');
-const myTotal = () => myOrders().reduce((a, x) => a + (x.total || 0), 0);
+const myTotal = () => myOrders().filter((x) => !x.paid).reduce((a, x) => a + (x.total || 0), 0);
 
 async function sendOrder(btn) {
   if (!S.cart.length) return;
@@ -468,7 +478,7 @@ async function sendOrder(btn) {
     });
     const total = cartTotal();
     const id = await sendRequest(S.config, { type: 'order', table: TABLE, k: KEY, items, total });
-    S.mine.push({ id, type: 'order', total, at: Date.now(), status: 'new' }); saveMine();
+    S.mine.push({ id, type: 'order', total, at: Date.now(), status: 'new' }); saveMine(true);
     S.cart = []; saveCart(); updateCartUI();
     closeSheet(cartSheet);
     celebrate(t('order_sent'), t('order_sent_sub'));
@@ -487,24 +497,35 @@ async function serviceCall(type) {
   if (!(await confirmDialog(q, { okText: t(type === 'waiter' ? 'call_waiter' : 'ask_bill') }))) return;
   try {
     const id = await sendRequest(S.config, type === 'bill' ? { type, table: TABLE, k: KEY, total: myTotal() } : { type, table: TABLE, k: KEY });
-    S.mine.push({ id, type, at: Date.now() }); saveMine();
+    S.mine.push({ id, type, at: Date.now() }); saveMine(true);
     S.cooldown[type] = Date.now() + 45e3;
     celebrate(t(type === 'waiter' ? 'waiter_sent' : 'bill_sent'), t(type === 'waiter' ? 'waiter_sent_sub' : 'bill_sent_sub'));
   } catch (e) { console.error(e); toast(t('send_failed'), 'err', 5000); }
 }
 
-// Polls the status of this table's orders (staff updates it) every 15s while the page is visible.
+// Follows this phone's orders: every 15 s while one is being prepared, then every minute until the bill
+// is paid. Once everything is paid the list is cleared (a new guest at this table starts from zero).
 let trackTimer = null;
 async function trackMine() {
   clearTimeout(trackTimer);
   if (!online()) return;
-  const open = myOrders().filter((x) => x.status !== 'done');
-  if (open.length && document.visibilityState === 'visible') {
-    await Promise.all(open.map(async (x) => { try { const d = await getRequest(S.config, x.id); if (d) x.status = d.status; } catch {} }));
+  if (S.mine.length && Date.now() - S.mineT > CART_TTL) { S.mine = []; saveMine(); }
+  const unpaid = myOrders().filter((x) => !x.paid);
+  if (unpaid.length && document.visibilityState === 'visible') {
+    await Promise.all(unpaid.map(async (x) => {
+      try { const d = await getRequest(S.config, x.id); if (d) { x.status = d.status; x.paid = !!d.paid; } }
+      catch (e) { if (e.status === 404) { x.status = 'done'; x.paid = true; } } // gone (e.g. the table got a new code)
+    }));
+    if (myOrders().every((x) => x.paid)) {
+      S.mine = []; saveMine(); renderMineStatus();
+      toast(t('paid_thanks'), 'ok', 5000);
+      return;
+    }
     saveMine();
   }
   renderMineStatus();
-  if (myOrders().some((x) => x.status !== 'done')) trackTimer = setTimeout(trackMine, 15000);
+  const left = myOrders().filter((x) => !x.paid);
+  if (left.length) trackTimer = setTimeout(trackMine, left.some((x) => x.status !== 'done') ? 15000 : 60000);
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') trackMine(); });
 function renderMineStatus() {

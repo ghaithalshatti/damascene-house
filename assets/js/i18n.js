@@ -24,7 +24,7 @@ export const STRINGS = {
     waiter_sent: 'النادل في الطريق', waiter_sent_sub: 'تم إرسال ندائك، سيصل إليك النادل خلال لحظات.',
     bill_sent: 'تم طلب الحساب', bill_sent_sub: 'سيحضر لك النادل الحساب حالاً.',
     order_sent: 'تم إرسال طلبك', order_sent_sub: 'وصل طلبك إلى المطبخ. يمكنك متابعة حالته من زر «طلباتي».',
-    my_orders: 'طلباتي', order_n: 'الطلب {n}', st_new: 'تم الاستلام', st_preparing: 'قيد التحضير', st_done: 'جاهز ✓',
+    paid_thanks: 'تم تسجيل الدفع، شكراً لزيارتكم', my_orders: 'طلباتي', order_n: 'الطلب {n}', st_new: 'تم الاستلام', st_preparing: 'قيد التحضير', st_done: 'جاهز ✓',
     // staff
     staff_title: 'شاشة الطاقم', staff_login_sub: 'أدخل كلمة سر الطاقم', email: 'البريد الإلكتروني',
     fb_not_ready: 'لم يتم تفعيل الطلبات المباشرة بعد. تواصل مع مطوّر الموقع.',
@@ -116,7 +116,7 @@ export const STRINGS = {
     waiter_sent: 'A waiter is on the way', waiter_sent_sub: 'Your call was sent; a waiter will be with you shortly.',
     bill_sent: 'Bill requested', bill_sent_sub: 'The waiter will bring your bill right away.',
     order_sent: 'Order sent', order_sent_sub: 'Your order reached the kitchen. Track it from the “My orders” button.',
-    my_orders: 'My orders', order_n: 'Order {n}', st_new: 'Received', st_preparing: 'Preparing', st_done: 'Ready ✓',
+    paid_thanks: 'Payment received, thank you for visiting', my_orders: 'My orders', order_n: 'Order {n}', st_new: 'Received', st_preparing: 'Preparing', st_done: 'Ready ✓',
     staff_title: 'Staff screen', staff_login_sub: 'Enter the staff password', email: 'Email',
     fb_not_ready: 'Live ordering is not set up yet. Contact the site developer.',
     f_all: 'All', f_order: 'Orders', f_waiter: 'Calls', f_bill: 'Bills', show_done: 'Show finished',
