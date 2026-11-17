@@ -146,7 +146,7 @@ function renderShell(gesture) {
     <header class="adm-top"><div class="adm-wrap staff-wrap">
       <div class="adm-top__row">
         <div class="adm-brand"><div class="adm-brand__logo">${ICONS.chef}</div>
-          <div style="min-width:0"><b>${esc(tx(S.config.restaurant.name))}</b><small>${esc(t('staff_title'))} · ${esc(S.me?.name || '')}</small></div></div>
+          <div style="min-width:0"><b>${esc(tx(S.config.restaurant.name))}</b><small>${S.me?.name ? `<span class="adm-sub-lbl">${esc(t('staff_title'))} · </span>${esc(S.me.name)}` : esc(t('staff_title'))}</small></div></div>
         <div class="adm-actions">
           <button class="icon-btn" id="snd" title="sound">${S.sound ? ICONS.sound : ICONS.mute}</button>
           ${S.config.languages.enabled.length > 1 ? `<button class="icon-btn" id="lang" title="${esc(t('lang_switch'))}">${ICONS.globe}</button>` : ''}

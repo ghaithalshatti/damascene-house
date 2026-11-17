@@ -27,8 +27,9 @@
 .tk__msg { font-size: 18px; font-weight: 600; }
 .tk__total { display: flex; justify-content: space-between; align-items: baseline; border-top: 1px dashed var(--line); padding-top: 8px; color: var(--muted); }
 .tk__total b { color: var(--text); font-size: 17px; }
-.tk__actions { display: flex; gap: 8px; }
-.tk__actions .btn { flex: 1; }
+.tk__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.tk__actions .btn { flex: 1 1 auto; }
+.tk > * { min-width: 0; }
 
 /* ===== Today's orders (dashboard) ===== */
 .bars { display: grid; gap: 10px; }

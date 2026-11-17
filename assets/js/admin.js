@@ -620,7 +620,7 @@ async function renderStaffAccounts(load = false) {
   catch (e) { body.innerHTML = `<p class="err-msg">${esc(e.code === 'permission-denied' ? t('fb_err_rules') : (e.code || e.message))}</p>`; return; }
   body.innerHTML = `${list.length ? `<div class="staff-list">${list.map((m) => `<div class="staff-row" data-uid="${esc(m.uid)}">
       <span class="staff-row__ic">${ICONS.user}</span><div class="staff-row__who"><b>${esc(m.name)}</b><small dir="ltr">${esc(m.username)}</small></div>
-      <button type="button" class="btn btn--ghost btn--sm" data-pw="${esc(m.uid)}">${ICONS.lock}${esc(t('staff_new_pw'))}</button>
+      <button type="button" class="btn btn--ghost btn--sm" data-pw="${esc(m.uid)}" title="${esc(t('staff_new_pw'))}">${ICONS.lock}<span class="staff-row__lbl">${esc(t('staff_new_pw'))}</span></button>
       <button type="button" class="icon-btn" data-del="${esc(m.uid)}" title="${esc(t('delete'))}">${ICONS.trash}</button></div>`).join('')}</div>`
     : `<p class="hint">${esc(t('staff_none'))}</p>`}
     <form class="stack staff-add" id="staffAdd" novalidate>
