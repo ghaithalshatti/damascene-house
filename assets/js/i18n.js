@@ -1,6 +1,17 @@
 // UI strings. Arabic = Modern Standard Arabic (فصحى).
 export const STRINGS = {
   ar: {
+    // table session (QR protection) & staff accounts
+    bad_table: 'رمز QR هذا قديم أو غير صحيح. امسح الرمز الموجود على طاولتك.', table_ended: 'انتهت جلسة طاولتك. امسح رمز QR على الطاولة لتتمكن من الطلب.', blocked: 'لا يمكن إرسال طلبات من هذا الجهاز إلى هذه الطاولة حالياً. اطلب من النادل مباشرة.',
+    order_rejected: 'رفض المطعم أحد طلباتك. إن كنت في المطعم نادِ النادل.',
+    a_reject: 'رفض', reject_q: 'رفض طلب طاولة {n}؟ تُرفض معه كل طلبات هذا الموبايل غير المدفوعة على الطاولة، وتختفي من كل الشاشات، ولن يستطيع هذا الموبايل الطلب لهذه الطاولة 3 ساعات.', rejected_ok: 'تم رفض الطلب', phone_n: 'الموبايل رقم {n} على هذه الطاولة',
+    f_mine: 'طلباتي', claim_mine: 'معك', claim_by: 'مع {n}', taken_first: 'استلمه زميل قبلك', manager_name: 'المدير',
+    username: 'اسم المستخدم', username_hint: 'مدير المطعم: اترك اسم المستخدم فارغاً.', wrong_login: 'اسم المستخدم أو كلمة السر غير صحيحة', account_removed: 'هذا الحساب لم يعد ضمن الطاقم. راجع مدير المطعم.',
+    staff_accounts: 'حسابات الطاقم', staff_accounts_hint: 'لكل نادل حساب خاص يدخل به شاشة الطاقم: أول من يضغط «بدء التحضير» أو «تم» أو «تم الدفع» على طلب يستلمه، ويظهر اسمه للجميع، ولا يستطيع غيره الضغط عليه (المدير يستطيع دائماً). حساب المدير يبقى كما هو بدون اسم مستخدم.',
+    staff_manage: 'إدارة حسابات الطاقم', staff_none: 'لا توجد حسابات طاقم بعد.', staff_name: 'الاسم الظاهر', staff_add: 'إضافة نادل', staff_add_hint: 'اسم المستخدم بالإنجليزية (حروف وأرقام)، وكلمة السر 6 أحرف على الأقل. أعطِهما للنادل ليدخل بهما شاشة الطاقم.',
+    staff_new_pw: 'كلمة سر جديدة', staff_new_pw_hint: 'يخرج النادل من أجهزته ويدخل باسم المستخدم نفسه وكلمة السر الجديدة.', staff_pw_short: 'كلمة السر 6 أحرف على الأقل', username_taken: 'اسم المستخدم مستخدم، اختر غيره.', username_rules: 'اسم المستخدم: من 2 إلى 20 حرفاً إنجليزياً أو رقماً (ويسمح بـ . _ -).',
+    staff_added: 'تمت الإضافة ✓ يدخل النادل باسم المستخدم «{u}»', staff_del_q: 'حذف حساب «{n}»؟ يخرج فوراً من شاشة الطاقم، وتبقى الطلبات التي استلمها باسمه.', staff_pw_changed: 'تم تغيير كلمة السر',
+    session_hours: 'مدة جلسة الطاولة (ساعات)', session_hours_hint: 'بعد مسح رمز QR يستطيع الزبون الطلب خلال هذه المدة، أو حتى يضغط النادل «تم الدفع». بعدها تبقى القائمة للتصفح فقط حتى يمسح الرمز من جديد. الافتراضي 4 (من 1 إلى 24). إذا غيّرتها انسخ القواعد أدناه والصقها في Firebase من جديد.',
     // common
     cancel: 'إلغاء', confirm: 'تأكيد', save: 'حفظ', delete: 'حذف', edit: 'تعديل', close: 'إغلاق', back: 'رجوع',
     loading: 'جارٍ التحميل…', error_load: 'تعذّر تحميل القائمة. تحقّق من الاتصال وحاول مجدداً.', retry: 'إعادة المحاولة',
@@ -26,7 +37,7 @@ export const STRINGS = {
     order_sent: 'تم إرسال طلبك', order_sent_sub: 'وصل طلبك إلى المطبخ. يمكنك متابعة حالته من زر «طلباتي».',
     paid_thanks: 'تم تسجيل الدفع، شكراً لزيارتكم', price_sent: 'أرسل الزبون {p}', item_unknown: 'غير موجودة في القائمة', price_mismatch: 'المجموع المرسل من موبايل الزبون ({sent}) لا يطابق أسعار القائمة، المعتمد هو المجموع أدناه.', my_orders: 'طلباتي', order_n: 'الطلب {n}', st_new: 'تم الاستلام', st_preparing: 'قيد التحضير', st_done: 'جاهز ✓',
     // staff
-    staff_title: 'شاشة الطاقم', staff_login_sub: 'أدخل كلمة سر الطاقم', email: 'البريد الإلكتروني',
+    staff_title: 'شاشة الطاقم', staff_login_sub: 'ادخل بحسابك', email: 'البريد الإلكتروني',
     fb_not_ready: 'لم يتم تفعيل الطلبات المباشرة بعد. تواصل مع مطوّر الموقع.',
     f_all: 'الكل', f_log: 'سجل اليوم', log_empty: 'لا توجد طلبات اليوم بعد', log_paid: 'مدفوع', log_unpaid: 'غير مدفوع', log_due: 'المتبقي', log_calls: 'نداءات وطلبات حساب: {n}', f_order: 'طلبات', f_waiter: 'نداءات', f_bill: 'حساب', show_done: 'إظهار المنتهية',
     k_order: 'طلب جديد', k_waiter: 'نداء نادل', k_bill: 'طلب الحساب',
@@ -39,7 +50,7 @@ export const STRINGS = {
     // today tab
     tab_today: 'طلبات اليوم', today: 'اليوم', yesterday: 'أمس', t_orders: 'عدد الطلبات', t_sales: 'المبيعات', t_avg: 'متوسط الطلب',
     t_calls: 'نداءات وحساب', t_top: 'الأكثر طلباً', t_hours: 'الطلبات حسب الساعة', t_empty: 'لا توجد طلبات في هذا اليوم بعد.',
-    staff_pw_q: 'أدخل كلمة سر الطاقم مرة واحدة على هذا الجهاز لعرض الطلبات.', sign_in: 'دخول',
+    staff_pw_q: 'أدخل كلمة سر حساب المدير مرة واحدة على هذا الجهاز.', sign_in: 'دخول',
     // admin
     admin_title: 'لوحة إدارة المطعم', login_title: 'تسجيل الدخول', login_sub: 'أدخل كلمة السر الخاصة بالمطعم',
     password: 'كلمة السر', login: 'دخول', remember: 'تذكّرني على هذا الجهاز', checking: 'جارٍ التحقق…',
@@ -82,8 +93,8 @@ export const STRINGS = {
     langs: 'اللغات المتاحة', ar_en: 'عربي + إنكليزي', ar_only: 'عربي فقط', en_only: 'إنكليزي فقط',
     s_features: 'الميزات', feat_ordering: 'تفعيل سلة الطلب للزبون', tables_count: 'عدد الطاولات', tables_hint: 'رمز كل طاولة ثابت لا يتغيّر أبداً. عند إضافة طاولات جديدة، زِد العدد واختر النطاق (مثلاً من 11 إلى 12) لطباعة الجديدة فقط.',
     s_firebase: 'الطلبات المباشرة (Firebase)', fb_paste: 'إعدادات Firebase (الصق firebaseConfig كما هو)',
-    fb_steps: 'console.firebase.google.com ← Add project (بدون Analytics).|Build ← Firestore Database ← Create database (Production mode، الموقع: eur3).|Build ← Authentication ← Get started ← Email/Password ← Enable، ثم Users ← Add user (إيميل وكلمة سر الطاقم).|Firestore ← Rules: الصق القواعد أدناه ← Publish.|Project settings ← Your apps ← Web (</>) ← سجّل التطبيق وانسخ firebaseConfig هنا.',
-    fb_staff_email: 'إيميل حساب الطاقم', fb_staff_pw: 'كلمة سر حساب الطاقم', fb_pw_hint: 'لا تُحفظ كلمة سر الطاقم في الموقع؛ تُستخدم هنا فقط للاختبار وإنشاء رموز الطاولات.',
+    fb_steps: 'console.firebase.google.com ← Add project (بدون Analytics).|Build ← Firestore Database ← Create database (Production mode، الموقع: eur3).|Build ← Authentication ← Get started ← Email/Password ← Enable، ثم Users ← Add user (إيميل وكلمة سر مدير المطعم).|Firestore ← Rules: الصق القواعد أدناه ← Publish.|Project settings ← Your apps ← Web (</>) ← سجّل التطبيق وانسخ firebaseConfig هنا.',
+    fb_staff_email: 'إيميل حساب مدير المطعم', fb_staff_pw: 'كلمة سر حساب المدير', fb_pw_hint: 'لا تُحفظ كلمة سر الطاقم في الموقع؛ تُستخدم هنا فقط للاختبار وإنشاء رموز الطاولات.',
     fb_rules: 'قواعد الأمان (Firestore Rules)', copy: 'نسخ', fb_test: 'اختبار Firebase', fb_ok: 'تم الاتصال ✓ والطلبات جاهزة',
     fb_need_config: 'الصق إعدادات Firebase أولاً', fb_need_pw: 'أدخل كلمة سر حساب الطاقم في قسم Firebase',
     s_password: 'كلمة سر صاحب المطعم', pw_keep: 'اتركها فارغة للإبقاء على كلمة السر الحالية.',
@@ -95,6 +106,17 @@ export const STRINGS = {
     pw_required_first: 'يجب تعيين كلمة سر لصاحب المطعم عند النشر لأول مرة.', fill_github: 'أكمل بيانات GitHub',
   },
   en: {
+    // table session (QR protection) & staff accounts
+    bad_table: 'This QR code is old or wrong. Scan the code on your table.', table_ended: 'Your table session has ended. Scan the QR code on the table to order.', blocked: 'This phone can’t send requests to this table right now. Please ask a waiter directly.',
+    order_rejected: 'The restaurant rejected one of your orders. If you are at the restaurant, call a waiter.',
+    a_reject: 'Reject', reject_q: 'Reject the request from table {n}? All of this phone’s unpaid requests at the table are rejected with it and disappear from every screen, and this phone can’t order for this table for 3 hours.', rejected_ok: 'Request rejected', phone_n: 'Phone {n} at this table',
+    f_mine: 'My orders', claim_mine: 'Yours', claim_by: 'With {n}', taken_first: 'A colleague took it first', manager_name: 'Manager',
+    username: 'Username', username_hint: 'Restaurant manager: leave the username empty.', wrong_login: 'Wrong username or password', account_removed: 'This account is no longer on the staff. Ask the restaurant manager.',
+    staff_accounts: 'Staff accounts', staff_accounts_hint: 'One account per waiter for the staff screen: the first one to press Prepare, Done or Paid on a request takes it, everyone sees their name, and nobody else can press it (the manager always can). The manager account stays as it is, with no username.',
+    staff_manage: 'Manage staff accounts', staff_none: 'No staff accounts yet.', staff_name: 'Display name', staff_add: 'Add waiter', staff_add_hint: 'Username in English letters/digits, password at least 6 characters. Give them to the waiter to sign in to the staff screen.',
+    staff_new_pw: 'New password', staff_new_pw_hint: 'The waiter is signed out of their devices and signs in with the same username and the new password.', staff_pw_short: 'The password needs at least 6 characters', username_taken: 'This username is taken, choose another.', username_rules: 'Username: 2 to 20 English letters or digits (. _ - allowed).',
+    staff_added: 'Added ✓ The waiter signs in as “{u}”', staff_del_q: 'Delete “{n}”? They are signed out of the staff screen right away; the requests they took keep their name.', staff_pw_changed: 'Password changed',
+    session_hours: 'Table session length (hours)', session_hours_hint: 'After scanning the QR code a guest can order for this long, or until the waiter presses “Paid”. Then the menu is browse-only until the code is scanned again. Default 4 (1 to 24). If you change it, copy the rules below and paste them in Firebase again.',
     cancel: 'Cancel', confirm: 'Confirm', save: 'Save', delete: 'Delete', edit: 'Edit', close: 'Close', back: 'Back',
     loading: 'Loading…', error_load: 'Could not load the menu. Check your connection and try again.', retry: 'Retry',
     lang_switch: 'العربية',
@@ -117,7 +139,7 @@ export const STRINGS = {
     bill_sent: 'Bill requested', bill_sent_sub: 'The waiter will bring your bill right away.',
     order_sent: 'Order sent', order_sent_sub: 'Your order reached the kitchen. Track it from the “My orders” button.',
     paid_thanks: 'Payment received, thank you for visiting', price_sent: 'customer sent {p}', item_unknown: 'not on the menu', price_mismatch: 'The total sent from the customer’s phone ({sent}) doesn’t match the menu prices; the total below is the correct one.', my_orders: 'My orders', order_n: 'Order {n}', st_new: 'Received', st_preparing: 'Preparing', st_done: 'Ready ✓',
-    staff_title: 'Staff screen', staff_login_sub: 'Enter the staff password', email: 'Email',
+    staff_title: 'Staff screen', staff_login_sub: 'Sign in with your account', email: 'Email',
     fb_not_ready: 'Live ordering is not set up yet. Contact the site developer.',
     f_all: 'All', f_log: 'Today’s log', log_empty: 'No orders yet today', log_paid: 'Paid', log_unpaid: 'Unpaid', log_due: 'Still due', log_calls: 'Calls & bill requests: {n}', f_order: 'Orders', f_waiter: 'Calls', f_bill: 'Bills', show_done: 'Show finished',
     k_order: 'New order', k_waiter: 'Waiter call', k_bill: 'Bill request',
@@ -129,7 +151,7 @@ export const STRINGS = {
     conn_error: 'Connection lost, retrying…', new_count: '{n} new',
     tab_today: "Today's orders", today: 'Today', yesterday: 'Yesterday', t_orders: 'Orders', t_sales: 'Sales', t_avg: 'Avg. order',
     t_calls: 'Calls & bills', t_top: 'Most ordered', t_hours: 'Orders by hour', t_empty: 'No orders on this day yet.',
-    staff_pw_q: 'Enter the staff password once on this device to see orders.', sign_in: 'Sign in',
+    staff_pw_q: 'Enter the manager account password once on this device.', sign_in: 'Sign in',
     admin_title: 'Restaurant dashboard', login_title: 'Sign in', login_sub: 'Enter the restaurant password',
     password: 'Password', login: 'Sign in', remember: 'Remember me on this device', checking: 'Checking…',
     wrong_password: 'Wrong password', not_setup: 'Sign-in is not set up yet. Contact the site developer.',
@@ -170,8 +192,8 @@ export const STRINGS = {
     langs: 'Languages', ar_en: 'Arabic + English', ar_only: 'Arabic only', en_only: 'English only',
     s_features: 'Features', feat_ordering: 'Enable customer order cart', tables_count: 'Number of tables', tables_hint: "Each table's code never changes. When you add tables, raise the count and pick a range (e.g. 11 to 12) to print only the new ones.",
     s_firebase: 'Live ordering (Firebase)', fb_paste: 'Firebase settings (paste firebaseConfig as is)',
-    fb_steps: 'console.firebase.google.com → Add project (no Analytics).|Build → Firestore Database → Create database (Production mode, location eur3).|Build → Authentication → Get started → Email/Password → Enable, then Users → Add user (staff email & password).|Firestore → Rules: paste the rules below → Publish.|Project settings → Your apps → Web (</>) → register the app and paste firebaseConfig here.',
-    fb_staff_email: 'Staff account email', fb_staff_pw: 'Staff account password', fb_pw_hint: 'The staff password is not stored on the site; it is only used here to test and create table codes.',
+    fb_steps: 'console.firebase.google.com → Add project (no Analytics).|Build → Firestore Database → Create database (Production mode, location eur3).|Build → Authentication → Get started → Email/Password → Enable, then Users → Add user (restaurant manager email & password).|Firestore → Rules: paste the rules below → Publish.|Project settings → Your apps → Web (</>) → register the app and paste firebaseConfig here.',
+    fb_staff_email: 'Restaurant manager account email', fb_staff_pw: 'Manager account password', fb_pw_hint: 'The staff password is not stored on the site; it is only used here to test and create table codes.',
     fb_rules: 'Security rules (Firestore Rules)', copy: 'Copy', fb_test: 'Test Firebase', fb_ok: 'Connected ✓ ordering is ready',
     fb_need_config: 'Paste the Firebase settings first', fb_need_pw: 'Enter the staff account password in the Firebase section',
     s_password: 'Owner password', pw_keep: 'Leave empty to keep the current password.',

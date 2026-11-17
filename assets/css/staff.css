@@ -73,3 +73,33 @@
 .staff-wrap.adm-main { padding-inline: 16px; }
 @media (max-width: 480px) { .staff-wrap.adm-main { padding-inline: 12px; } }
 .log-stats .stat b { font-size: 19px; }
+
+
+/* Who took the request: mine = tinted, taken by a colleague = faded */
+.tk__claim { display: inline-flex; align-items: center; gap: 6px; margin: 0; justify-self: start; padding: 3px 10px; border-radius: 99px; font-size: 13px; font-weight: 700;
+  color: var(--muted); background: color-mix(in srgb, var(--muted) 12%, var(--surface)); }
+.tk__claim .ic { width: 15px; height: 15px; }
+.tk__where { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+/* More than one phone at a table: every card of that table turns red and shows which phone sent it;
+   new ones blink until a waiter takes them. */
+.tk.tk--multi { --c: #E5484D; background: color-mix(in srgb, #E5484D 16%, var(--surface)); box-shadow: 0 0 0 2px color-mix(in srgb, #E5484D 70%, transparent), var(--shadow-sm); }
+.tk.tk--alarm { animation: tk-alarm 1.1s ease-in-out infinite; }
+@keyframes tk-alarm {
+  0%, 100% { box-shadow: 0 0 0 2px color-mix(in srgb, #E5484D 70%, transparent), var(--shadow-sm); }
+  50% { box-shadow: 0 0 0 4px #E5484D, 0 0 26px color-mix(in srgb, #E5484D 55%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) { .tk.tk--alarm { animation: none; box-shadow: 0 0 0 4px #E5484D; } }
+.tk__phone { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px 2px 7px; border-radius: 99px; font-size: 13px; line-height: 1.4;
+  color: #fff; background: #E5484D; }
+.tk__phone .ic { width: 13px; height: 13px; }
+.tk__phone b { font-weight: 800; }
+.tk__actions .tk__reject { flex: 0 0 auto; color: var(--danger); }
+[data-theme="dark"] .tk__actions .tk__reject { color: #F08A80; }
+.tk__claim--mine { color: var(--primary); background: color-mix(in srgb, var(--primary) 14%, var(--surface)); }
+.tk--mine { background: color-mix(in srgb, var(--primary) 7%, var(--surface)); box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 45%, transparent), var(--shadow-sm); }
+.tk--taken:not(.tk--done) { opacity: .62; filter: saturate(.55); border-top-color: color-mix(in srgb, var(--muted) 60%, var(--line)); box-shadow: none; }
+.tk--taken:not(.tk--done):hover { opacity: .9; }
+.tab__n--mine { background: var(--primary); color: var(--on-primary, #fff); }
+.log-meta { grid-column: 2 / -1; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.log-by { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: 12px; font-weight: 600; }
+.log-by .ic { width: 13px; height: 13px; }

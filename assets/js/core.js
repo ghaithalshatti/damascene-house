@@ -48,7 +48,7 @@ export function normalizeConfig(c = {}) {
     features: { ordering: true },
     tables: { count: 10 },
     github: { owner: '', repo: '', branch: 'main' },
-    firebase: { apiKey: '', authDomain: '', projectId: '', appId: '', staffEmail: '' },
+    firebase: { apiKey: '', authDomain: '', projectId: '', appId: '', staffEmail: '', sessionHours: 4 },
     poweredBy: { name: '', url: '' },
   };
   return deepMerge(d, c);
@@ -209,6 +209,9 @@ export const ICONS = {
   plus: svg('<path d="M12 5v14M5 12h14"/>'),
   minus: svg('<path d="M5 12h14"/>'),
   close: svg('<path d="M18 6 6 18M6 6l12 12"/>'),
+  user: svg('<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/>'),
+  mobile: svg('<rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/>'),
+  users: svg('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.3c2 .8 3.5 2.8 3.5 5.7"/>'),
   bag: svg('<path d="M6 7h12l1 13H5L6 7Z"/><path d="M9 7a3 3 0 0 1 6 0"/>'),
   info: svg('<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>'),
   globe: svg('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>'),

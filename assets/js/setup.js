@@ -7,7 +7,7 @@ import { GitHub, toJSONText } from './github.js';
 import { encryptSecret, cryptoAvailable, isStrongPassword, tokenHash } from './crypto.js';
 import { compressImage, blobToDataURL } from './image.js';
 import { qrControlsHTML, bindQr } from './qr.js';
-import { fbEnabled, currentStaff, staffSignIn, tableKeys, rulesFor, resetFirebase } from './fb.js';
+import { fbEnabled, currentStaff, staffSignIn, tableKeys, rulesFor, resetFirebase, sessionHours } from './fb.js';
 import { THEMES, getTheme, themeIdOf } from './themes.js';
 
 const app = document.getElementById('app');
@@ -129,6 +129,8 @@ function render() {
         <div class="grid2">${field(t('fb_staff_email'), input('fbEmail', c.firebase.staffEmail, 'type="email" dir="ltr" placeholder="staff@restaurant.com"'))}
           ${field(t('fb_staff_pw'), `<input class="input" type="password" name="fbPw" autocomplete="off">`)}</div>
         <p class="hint">${esc(t('fb_pw_hint'))}</p>
+        ${field(t('session_hours'), input('sessionHours', String(sessionHours(c)), 'type="number" min="1" max="24" step="1" inputmode="numeric" dir="ltr" style="max-width:140px"'))}
+        <p class="hint" style="margin-top:-6px">${esc(t('session_hours_hint'))}</p>
         <div class="field"><span>${esc(t('fb_rules'))}</span><pre class="rules" id="rules"></pre>
           <button type="button" class="btn btn--ghost btn--sm" id="copyRules" style="justify-self:start">${ICONS.copy}${esc(t('copy'))}</button></div>
         <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><button type="button" class="btn btn--outline" id="fbTest">${ICONS.check}${esc(t('fb_test'))}</button><span class="status" id="fbStatus"></span></div>
@@ -221,7 +223,7 @@ function bind() {
     },
   });
   const upd = () => { readForm(); updateFbInfo(); };
-  f.fbPaste.addEventListener('input', upd); f.fbEmail.addEventListener('input', upd);
+  f.fbPaste.addEventListener('input', upd); f.fbEmail.addEventListener('input', upd); f.sessionHours.addEventListener('input', upd);
   updateFbInfo();
   document.getElementById('copyRules').onclick = async () => { try { await navigator.clipboard.writeText(document.getElementById('rules').textContent); toast(t('copied')); } catch {} };
   document.getElementById('fbTest').onclick = async () => {
@@ -241,7 +243,7 @@ function updateFbInfo() {
   const fb = S.config.firebase;
   document.getElementById('fbParsed').innerHTML = fb.projectId ? `${ICONS.check}<span dir="ltr">${esc(fb.projectId)}</span>` : '';
   document.getElementById('fbParsed').className = `status ${fb.projectId ? 'ok' : ''}`;
-  document.getElementById('rules').textContent = rulesFor(fb.staffEmail);
+  document.getElementById('rules').textContent = rulesFor(S.config);
 }
 // Signs into Firebase with the staff account typed in the Firebase panel.
 let fbKey = '';
@@ -299,7 +301,7 @@ function readForm() {
   c.theme = { id: getTheme(themeIdOf(c.theme)).id, primary: f.primary.value, style: STYLES.includes(c.theme.style) ? c.theme.style : 'classic' };
   c.features.ordering = f.ordering.checked;
   c.tables.count = Math.max(1, Math.min(300, parseInt(v('tables'), 10) || 1));
-  if (f.elements.fbPaste) c.firebase = { ...parseFirebase(f.fbPaste.value), staffEmail: v('fbEmail').toLowerCase() };
+  if (f.elements.fbPaste) c.firebase = { ...parseFirebase(f.fbPaste.value), staffEmail: v('fbEmail').toLowerCase(), sessionHours: sessionHours({ firebase: { sessionHours: v('sessionHours') } }) };
 }
 
 async function testConnection() {

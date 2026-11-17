@@ -284,3 +284,14 @@ html[data-skin="ocean"] .adm-top::before, html[data-skin="midnight"] .adm-top::b
 .style-mini--magazine i:first-child { height: 16px !important; width: 70%; background: var(--text); border-radius: 0; clip-path: polygon(0 30%, 100% 30%, 100% 70%, 0 70%); margin-top: 4px; }
 .style-mini--magazine i:nth-child(2) { width: 24px; background: var(--primary); }
 .style-mini--magazine i:nth-child(4) { display: block; }
+
+/* Staff accounts (settings tab) */
+.staff-list { display: grid; gap: 8px; margin-bottom: 16px; }
+.staff-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.staff-row__ic { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px; flex: none; color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, var(--surface)); }
+.staff-row__ic .ic { width: 20px; height: 20px; }
+.staff-row__who { flex: 1; min-width: 0; display: grid; }
+.staff-row__who b, .staff-row__who small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.staff-row__who small { color: var(--muted); justify-self: start; }
+.staff-add { padding-top: 14px; border-top: 1px dashed var(--line); }
+@media (max-width: 420px) { .staff-row .btn span, .staff-row .btn { font-size: 12.5px; } }

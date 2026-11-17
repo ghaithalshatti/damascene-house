@@ -3,15 +3,20 @@ import {
   loadSite, normalizeConfig, deepMerge, initLang, setLang, getLang, t, tx, formatPrice, esc, imgSrc, applyTheme,
   ICONS, TAGS, normalizeSearch, openSheet, closeSheet, confirmDialog, ls, toast,
 } from './core.js';
-import { fbEnabled, sendRequest, getRequest } from './fb.js';
+import { fbEnabled, sendRequest, getRequest, startSession, isBlocked, sessionHours } from './fb.js';
 
 const params = new URLSearchParams(location.search);
-const TABLE = (params.get('t') || params.get('table') || '').replace(/[^\w-]/g, '').slice(0, 8);
+const URL_TABLE = (params.get('t') || params.get('table') || '').replace(/[^\w-]/g, '').slice(0, 8);
 const KEY = (params.get('k') || '').replace(/[^\w-]/g, '').slice(0, 16); // table secret printed in the QR
 const PREVIEW = params.get('preview') === '1'; // used by the setup page's live preview
 const MINE_KEY = 'rm:mine';
 const CART_KEY = 'rm:cart';
-const CART_TTL = 4 * 3600e3;
+const SESSION_KEY = 'rm:table';
+const PHONE_KEY = 'rm:phone';
+const PHONE_TTL = 24 * 3600e3;
+let CART_TTL = 4 * 3600e3;
+// The table this phone sits at: from the QR just scanned, else from its open table session.
+let TABLE = URL_TABLE;
 
 const app = document.getElementById('app');
 const S = { config: null, menu: null, draft: false, langs: [], cart: [], lockSpy: 0, mine: [], cooldown: {} };
@@ -35,6 +40,8 @@ async function boot() {
   [itemSheet, cartSheet, infoSheet] = ['itemSheet', 'cartSheet', 'infoSheet'].map((id) => {
     const el = document.createElement('div'); el.className = 'sheet'; el.id = id; el.hidden = true; document.body.append(el); return el;
   });
+  CART_TTL = sessionHours(S.config) * 3600e3;
+  initSession();
   loadCart();
   loadMine();
   render();
@@ -53,8 +60,8 @@ async function boot() {
 
 /* ---------- helpers ---------- */
 const ordering = () => S.config.features?.ordering !== false;
-// Live mode: Firebase is set up and the QR carried a table number + its secret key.
-const online = () => ordering() && fbEnabled(S.config) && !!TABLE && !!KEY && !PREVIEW;
+// Live mode: Firebase is set up and this phone has an open table session (QR scanned, not paid yet, not expired).
+const online = () => ordering() && fbEnabled(S.config) && !!TABLE && !!(S.session || S.pendingKey) && !S.sessionOver && !PREVIEW;
 const fmt = (n) => formatPrice(n, S.config);
 const findItem = (id) => S.menu.items.find((i) => i.id === id);
 const findCat = (id) => S.menu.categories.find((c) => c.id === id);
@@ -134,6 +141,7 @@ function render() {
   `;
   setupObservers();
   updateCartUI();
+  renderMineStatus();
 }
 
 function cardHTML(it, c, ix) {
@@ -454,7 +462,7 @@ const tlDefault = (o) => { const L = S.config.languages.default || 'ar'; return 
 // paid, or 4 hours after the last request, so the next guest at the table always starts clean.
 function loadMine() {
   const saved = ls.get(MINE_KEY);
-  const fresh = !!saved && saved.table === TABLE && (saved.k || '') === KEY && Date.now() - saved.t < CART_TTL;
+  const fresh = !!saved && saved.table === TABLE && !!saved.phone && saved.phone === myPhone() && Date.now() - saved.t < CART_TTL;
   S.mine = fresh ? saved.list || [] : [];
   S.mineT = fresh ? saved.t : 0;
   if (saved && !fresh) ls.del(MINE_KEY);
@@ -463,7 +471,7 @@ function loadMine() {
 function saveMine(touch = false) {
   if (touch || !S.mineT) S.mineT = Date.now();
   if (!S.mine.length) { ls.del(MINE_KEY); S.mineT = 0; return; }
-  ls.set(MINE_KEY, { t: S.mineT, table: TABLE, k: KEY, list: S.mine });
+  ls.set(MINE_KEY, { t: S.mineT, table: TABLE, phone: myPhone(), list: S.mine });
 }
 const myOrders = () => S.mine.filter((x) => x.type === 'order');
 const myTotal = () => myOrders().filter((x) => !x.paid).reduce((a, x) => a + (x.total || 0), 0);
@@ -477,16 +485,16 @@ async function sendOrder(btn) {
       return { id: it.id, si: l.size, name: tlDefault(it.name), size: l.size > -1 ? tlDefault(it.sizes[l.size].name) : '', qty: l.qty, price: unitPrice(it, l.size), note: l.note || '' };
     });
     const total = cartTotal();
-    const id = await sendRequest(S.config, { type: 'order', table: TABLE, k: KEY, items, total });
+    const id = await sendRequest(S.config, { type: 'order', ...(await who()), items, total });
     S.mine.push({ id, type: 'order', total, at: Date.now(), status: 'new' }); saveMine(true);
     S.cart = []; saveCart(); updateCartUI();
     closeSheet(cartSheet);
     celebrate(t('order_sent'), t('order_sent_sub'));
     trackMine();
   } catch (e) {
-    console.error(e);
-    toast(t('send_failed'), 'err', 5000);
+    if (!btn.isConnected) return;
     btn.disabled = false; btn.innerHTML = `${ICONS.send}${esc(t('send_order'))}`;
+    await requestFailed(e);
   }
 }
 
@@ -496,11 +504,84 @@ async function serviceCall(type) {
   const q = type === 'waiter' ? t('call_waiter_q') : t('ask_bill_q', { total: fmt(myTotal()) });
   if (!(await confirmDialog(q, { okText: t(type === 'waiter' ? 'call_waiter' : 'ask_bill') }))) return;
   try {
-    const id = await sendRequest(S.config, type === 'bill' ? { type, table: TABLE, k: KEY, total: myTotal() } : { type, table: TABLE, k: KEY });
+    const w = await who();
+    const id = await sendRequest(S.config, type === 'bill' ? { type, ...w, total: myTotal() } : { type, ...w });
     S.mine.push({ id, type, at: Date.now() }); saveMine(true);
     S.cooldown[type] = Date.now() + 45e3;
     celebrate(t(type === 'waiter' ? 'waiter_sent' : 'bill_sent'), t(type === 'waiter' ? 'waiter_sent_sub' : 'bill_sent_sub'));
-  } catch (e) { console.error(e); toast(t('send_failed'), 'err', 5000); }
+  } catch (e) { await requestFailed(e); }
+}
+
+/* ---------- table session (QR protection) ---------- */
+// Scanning the QR (?t=…&k=…) opens a table session in Firestore and the key leaves the address bar right away.
+// Ordering then works from this phone for the session hours, or until the waiter presses «Paid»; after that the
+// menu is browse-only until the QR is scanned again. The phone gets an id kept for a day (renewed on every scan),
+// so the staff can tell the phones at a table apart and reject a fake one.
+function phoneId(renew) {
+  let p = ls.get(PHONE_KEY);
+  if (!p || !/^[0-9a-z]{16,32}$/.test(p.id || '') || Date.now() - p.t > PHONE_TTL) {
+    p = { id: Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => b.toString(36).padStart(2, '0')).join('').slice(0, 20), t: Date.now() };
+    ls.set(PHONE_KEY, p);
+  } else if (renew) { p.t = Date.now(); ls.set(PHONE_KEY, p); }
+  return p.id;
+}
+const myPhone = () => S.session?.phone || ls.get(PHONE_KEY)?.id || '';
+function initSession() {
+  if (PREVIEW || !fbEnabled(S.config) || !ordering()) return;
+  const saved = ls.get(SESSION_KEY);
+  const valid = saved && saved.sid && saved.table && Date.now() - saved.t < CART_TTL;
+  if (URL_TABLE && KEY) {
+    // A fresh scan: open a new session (in the background; sending waits for it).
+    S.pendingKey = KEY;
+    history.replaceState(null, '', location.pathname);
+    ensureSession().catch(() => {});
+    return;
+  }
+  if (valid && (!URL_TABLE || URL_TABLE === saved.table)) { S.session = saved; TABLE = saved.table; return; }
+  if (saved && !valid) ls.del(SESSION_KEY);
+}
+let sessionP = null;
+function ensureSession() {
+  if (!S.pendingKey) return Promise.resolve(S.session);
+  sessionP ??= (async () => {
+    try {
+      const phone = phoneId(true);
+      const sid = await startSession(S.config, TABLE, S.pendingKey, phone);
+      S.session = { sid, table: TABLE, phone, t: Date.now() };
+      ls.set(SESSION_KEY, S.session);
+      S.pendingKey = '';
+      return S.session;
+    } catch (e) {
+      if (e.code === 'permission-denied') { // wrong or old QR code
+        S.pendingKey = ''; S.badQr = true;
+        if (!S.session) { ls.del(SESSION_KEY); render(); toast(t('bad_table'), 'err', 7000); }
+      }
+      throw e;
+    } finally { sessionP = null; }
+  })();
+  return sessionP;
+}
+async function who() {
+  const s = await ensureSession();
+  if (!s) { const e = new Error('no session'); e.code = 'no-session'; throw e; }
+  return { table: s.table, sid: s.sid, phone: s.phone };
+}
+// The session ended (paid / expired / new QR) while this page was open: browse-only from now on.
+function sessionOver() {
+  S.sessionOver = true; S.session = null;
+  ls.del(SESSION_KEY);
+  closeSheet(cartSheet); render(); updateCartUI();
+  toast(t('table_ended'), 'err', 8000);
+}
+async function requestFailed(e) {
+  if (e.code === 'permission-denied' && S.badQr && !S.session) return; // already told
+  if (e.code === 'permission-denied' || e.code === 'no-session') {
+    const s = S.session;
+    if (s && (await isBlocked(S.config, s.table, s.phone).catch(() => false))) { toast(t('blocked'), 'err', 7000); return; }
+    sessionOver(); return;
+  }
+  console.error(e);
+  toast(t('send_failed'), 'err', 5000);
 }
 
 // Follows this phone's orders: every 15 s while one is being prepared, then every minute until the bill
@@ -513,11 +594,20 @@ async function trackMine() {
   const unpaid = myOrders().filter((x) => !x.paid);
   if (unpaid.length && document.visibilityState === 'visible') {
     await Promise.all(unpaid.map(async (x) => {
-      try { const d = await getRequest(S.config, x.id); if (d) { x.status = d.status; x.paid = !!d.paid; } }
-      catch (e) { if (e.status === 404) { x.status = 'done'; x.paid = true; } } // gone (e.g. the table got a new code)
+      try {
+        const d = await getRequest(S.config, x.id);
+        if (!d || d.type === 'void') x.rejected = true; // the staff rejected it as fake
+        else { x.status = d.status; x.paid = !!d.paid; }
+      } catch {}
     }));
-    if (myOrders().every((x) => x.paid)) {
+    if (S.mine.some((x) => x.rejected)) {
+      S.mine = S.mine.filter((x) => !x.rejected); saveMine();
+      toast(t('order_rejected'), 'err', 7000);
+    }
+    if (myOrders().length && myOrders().every((x) => x.paid)) {
       S.mine = []; saveMine(); renderMineStatus();
+      // «Paid» ends the table session: the next guest on this phone must scan the QR again.
+      S.session = null; ls.del(SESSION_KEY); render(); updateCartUI();
       toast(t('paid_thanks'), 'ok', 5000);
       return;
     }

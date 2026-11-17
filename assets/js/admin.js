@@ -7,7 +7,7 @@ import { GitHub, toJSONText } from './github.js';
 import { decryptSecret, encryptSecret, cryptoAvailable, isStrongPassword } from './crypto.js';
 import { compressImage, blobToDataURL } from './image.js';
 import { qrControlsHTML, bindQr } from './qr.js';
-import { fbEnabled, currentStaff, staffSignIn, dayRequests, tableKeys } from './fb.js';
+import { fbEnabled, currentStaff, staffSignIn, dayRequests, tableKeys, isManagerEmail, listStaff, addStaff, removeStaff, resetStaffPassword, cleanUser, validUser } from './fb.js';
 
 const app = document.getElementById('app');
 const A = { config: null, menu: null, mode: 'local', gh: null, token: '', tab: 'items', cat: 'all', q: '', pending: new Map() };
@@ -524,8 +524,10 @@ const getPath = (o, p) => p.split('.').reduce((a, k) => (a == null ? '' : a[k]),
 function setPath(o, p, v) { const ks = p.split('.'); const last = ks.pop(); const tgt = ks.reduce((a, k) => (a[k] ??= {}), o); tgt[last] = v; }
 
 /* ---------- staff sign-in (Firebase) for orders data ---------- */
+// The admin page uses the manager account (a waiter signed in on this device doesn't count).
 async function ensureStaff() {
-  if (await currentStaff(A.config)) return true;
+  const cur = await currentStaff(A.config);
+  if (cur && isManagerEmail(A.config, cur.email)) return true;
   return new Promise((resolve) => {
     const sheet = makeSheet();
     let ok = false;
@@ -603,6 +605,69 @@ async function renderToday() {
     </div>` : `<div class="empty">${ICONS.receipt}<p>${esc(t('t_empty'))}</p></div>`}`;
 }
 
+/* ---------- staff accounts (Firebase): one per waiter, so each request shows who took it ---------- */
+async function renderStaffAccounts(load = false) {
+  const body = document.getElementById('staffBody'); if (!body) return;
+  const cur = await currentStaff(A.config).catch(() => null);
+  if (!load && !(cur && isManagerEmail(A.config, cur.email))) {
+    body.innerHTML = `<button class="btn btn--ghost" id="staffLoad">${ICONS.lock}${esc(t('staff_manage'))}</button>`;
+    document.getElementById('staffLoad').onclick = async () => { if (await ensureStaff()) renderStaffAccounts(true); };
+    return;
+  }
+  body.innerHTML = '<span class="spinner" style="color:var(--primary)"></span>';
+  let list;
+  try { list = await listStaff(A.config); }
+  catch (e) { body.innerHTML = `<p class="err-msg">${esc(e.code === 'permission-denied' ? t('fb_err_rules') : (e.code || e.message))}</p>`; return; }
+  body.innerHTML = `${list.length ? `<div class="staff-list">${list.map((m) => `<div class="staff-row" data-uid="${esc(m.uid)}">
+      <span class="staff-row__ic">${ICONS.user}</span><div class="staff-row__who"><b>${esc(m.name)}</b><small dir="ltr">${esc(m.username)}</small></div>
+      <button type="button" class="btn btn--ghost btn--sm" data-pw="${esc(m.uid)}">${ICONS.lock}${esc(t('staff_new_pw'))}</button>
+      <button type="button" class="icon-btn" data-del="${esc(m.uid)}" title="${esc(t('delete'))}">${ICONS.trash}</button></div>`).join('')}</div>`
+    : `<p class="hint">${esc(t('staff_none'))}</p>`}
+    <form class="stack staff-add" id="staffAdd" novalidate>
+      <div class="grid2">${field(t('staff_name'), `<input class="input" name="name" maxlength="30" required>`)}
+        ${field(t('username'), `<input class="input" name="username" dir="ltr" maxlength="20" autocapitalize="none" spellcheck="false" placeholder="samer" required>`)}</div>
+      ${field(t('password'), `<input class="input" name="password" type="text" dir="ltr" autocomplete="off" minlength="6" required>`)}
+      <p class="hint">${esc(t('staff_add_hint'))}</p>
+      <button class="btn btn--primary" id="staffAddBtn">${ICONS.plus}${esc(t('staff_add'))}</button></form>`;
+  const errOf = (e) => (e.code === 'username-taken' ? t('username_taken') : e.code === 'auth/weak-password' ? t('staff_pw_short') : e.code === 'permission-denied' ? t('fb_err_rules') : (e.code || e.message));
+  document.getElementById('staffAdd').onsubmit = async (e) => {
+    e.preventDefault();
+    const f = e.currentTarget; const name = f.name.value.trim(); const username = cleanUser(f.username.value); const password = f.password.value;
+    if (!name) { toast(t('staff_name'), 'err'); return; }
+    if (!validUser(username)) { toast(t('username_rules'), 'err', 5000); return; }
+    if (password.length < 6) { toast(t('staff_pw_short'), 'err'); return; }
+    const b = document.getElementById('staffAddBtn'); b.disabled = true; b.innerHTML = `<span class="spinner"></span>${esc(t('saving'))}`;
+    try { await addStaff(A.config, { name, username, password }); toast(t('staff_added', { u: username })); renderStaffAccounts(true); }
+    catch (ex) { if (ex.code !== 'username-taken') console.error(ex); toast(errOf(ex), 'err', 6000); b.disabled = false; b.innerHTML = `${ICONS.plus}${esc(t('staff_add'))}`; }
+  };
+  body.onclick = async (e) => {
+    const del = e.target.closest('[data-del]'); const pw = e.target.closest('[data-pw]');
+    const m = list.find((x) => x.uid === (del || pw)?.dataset[del ? 'del' : 'pw']); if (!m) return;
+    if (del) {
+      if (!(await confirmDialog(t('staff_del_q', { n: m.name }), { danger: true, okText: t('delete') }))) return;
+      try { await removeStaff(A.config, m); renderStaffAccounts(true); } catch (ex) { toast(errOf(ex), 'err', 6000); }
+      return;
+    }
+    const sheet = makeSheet();
+    sheet.innerHTML = `<div class="sheet__panel" role="dialog" aria-modal="true" style="max-width:420px"><div class="sheet__grip"></div>
+      <div class="sheet__head"><h2>${esc(t('staff_new_pw'))} · ${esc(m.name)}</h2><button class="icon-btn" data-close aria-label="${esc(t('close'))}">${ICONS.close}</button></div>
+      <form class="sheet__body stack" id="npf" novalidate>
+        ${field(t('new_password'), `<input class="input" name="np" type="text" dir="ltr" autocomplete="off" minlength="6" required>`)}
+        <p class="hint">${esc(t('staff_new_pw_hint'))}</p>
+        <button class="btn btn--primary btn--block">${ICONS.check}${esc(t('staff_new_pw'))}</button></form></div>`;
+    sheet.querySelector('#npf').onsubmit = async (ev) => {
+      ev.preventDefault();
+      const np = ev.currentTarget.np.value; const b = ev.currentTarget.querySelector('button');
+      if (np.length < 6) { toast(t('staff_pw_short'), 'err'); return; }
+      b.disabled = true; b.innerHTML = `<span class="spinner"></span>${esc(t('saving'))}`;
+      try { await resetStaffPassword(A.config, m, np); closeSheet(sheet); toast(t('staff_pw_changed')); renderStaffAccounts(true); }
+      catch (ex) { toast(errOf(ex), 'err', 6000); b.disabled = false; b.innerHTML = `${ICONS.check}${esc(t('staff_new_pw'))}`; }
+    };
+    openSheet(sheet);
+    setTimeout(() => sheet.querySelector('[name="np"]')?.focus(), 300);
+  };
+}
+
 /* ---------- settings tab ---------- */
 function renderSettings() {
   const main = document.getElementById('main');
@@ -623,7 +688,9 @@ function renderSettings() {
         <a class="btn btn--ghost" href="../" target="_blank" rel="noopener" title="${esc(t('view_menu'))}">${ICONS.eye}</a></div>
       <p class="hint" style="margin-top:10px">${esc(t('last_update'))}: <span class="num">${esc(updated)}</span></p></div>
     <div class="panel" id="qrPanel"><div class="panel__title">${ICONS.qr}${esc(t('s_qr'))}</div>
-      ${qrControlsHTML({ count: A.config.tables.count })}</div>`;
+      ${qrControlsHTML({ count: A.config.tables.count })}</div>
+    ${fbEnabled(A.config) ? `<div class="panel" id="staffPanel"><div class="panel__title">${ICONS.users}${esc(t('staff_accounts'))}</div>
+      <p class="hint" style="margin:-4px 0 12px">${esc(t('staff_accounts_hint'))}</p><div id="staffBody"></div></div>` : ''}`;
   document.getElementById('copyLink').onclick = async () => { try { await navigator.clipboard.writeText(menuUrl); toast(t('copied')); } catch {} };
   bindQr(document.getElementById('qrPanel'), {
     getConfig: () => A.config,
@@ -632,6 +699,7 @@ function renderSettings() {
     onCount: (n) => { if (n !== A.config.tables.count) { A.config.tables.count = n; persist('Update tables count', { config: true }).catch(() => {}); } },
     getKeys: fbEnabled(A.config) ? async (from, to) => { if (!(await ensureStaff())) throw new Error('auth'); return tableKeys(A.config, from, to); } : null,
   });
+  if (fbEnabled(A.config)) renderStaffAccounts();
   document.getElementById('resetLocal')?.addEventListener('click', async () => {
     if (!(await confirmDialog(t('reset_local_q'), { danger: true }))) return;
     saveDraft.clear(); location.reload();
