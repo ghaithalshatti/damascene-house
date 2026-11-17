@@ -2,6 +2,7 @@
 export const STRINGS = {
   ar: {
     // table session (QR protection) & staff accounts
+    no_bill: 'لا يوجد حساب بعد', no_bill_sub: 'لم تطلب أي وجبة من هذا الموبايل بعد. اطلب من القائمة أولاً، ثم اطلب الحساب.', bill_title: 'الفاتورة', bill_orders: 'عدد الطلبات: {n}', bill_total: 'المجموع', bill_hint: 'النادل في طريقه إليك لاستلام الحساب.', bill_hint_mine: 'هذه طلباتك من هذا الموبايل. اطلب الحساب عندما تكون جاهزاً.',
     bad_table: 'رمز QR هذا قديم أو غير صحيح. امسح الرمز الموجود على طاولتك.', table_ended: 'انتهت جلسة طاولتك. امسح رمز QR على الطاولة لتتمكن من الطلب.', blocked: 'لا يمكن إرسال طلبات من هذا الجهاز إلى هذه الطاولة حالياً. اطلب من النادل مباشرة.',
     order_rejected: 'رفض المطعم أحد طلباتك. إن كنت في المطعم نادِ النادل.',
     a_reject: 'رفض', reject_q: 'رفض طلب طاولة {n}؟ تُرفض معه كل طلبات هذا الموبايل غير المدفوعة على الطاولة، وتختفي من كل الشاشات، ولن يستطيع هذا الموبايل الطلب لهذه الطاولة 3 ساعات.', rejected_ok: 'تم رفض الطلب', phone_n: 'الموبايل رقم {n} على هذه الطاولة',
@@ -106,6 +107,7 @@ export const STRINGS = {
     pw_required_first: 'يجب تعيين كلمة سر لصاحب المطعم عند النشر لأول مرة.', fill_github: 'أكمل بيانات GitHub',
   },
   en: {
+    no_bill: 'No bill yet', no_bill_sub: 'Nothing has been ordered from this phone yet. Order from the menu first, then ask for the bill.', bill_title: 'Your bill', bill_orders: 'Orders: {n}', bill_total: 'Total', bill_hint: 'A waiter is on the way to collect the payment.', bill_hint_mine: 'These are your orders from this phone. Ask for the bill when you are ready.',
     // table session (QR protection) & staff accounts
     bad_table: 'This QR code is old or wrong. Scan the code on your table.', table_ended: 'Your table session has ended. Scan the QR code on the table to order.', blocked: 'This phone can’t send requests to this table right now. Please ask a waiter directly.',
     order_rejected: 'The restaurant rejected one of your orders. If you are at the restaurant, call a waiter.',

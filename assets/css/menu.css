@@ -286,6 +286,11 @@ main { padding: 6px 16px 120px; }
 .done-pop__ic::before, .done-pop__ic::after { content: ''; position: absolute; inset: -8px; border-radius: 50%; border: 2px solid var(--primary); opacity: 0; }
 .done-pop.in .done-pop__ic::before { animation: ring 1.2s .2s ease-out; }
 .done-pop.in .done-pop__ic::after { animation: ring 1.2s .45s ease-out; }
+/* Notice (not a success): muted icon, no rings or stroke animation. */
+.done-pop--info .done-pop__ic { background: var(--surface-2); color: var(--primary); box-shadow: none; }
+.done-pop--info .done-pop__ic .ic { stroke-width: 2; stroke-dasharray: none; stroke-dashoffset: 0; animation: none !important; }
+.done-pop--info .done-pop__ic::before, .done-pop--info .done-pop__ic::after { display: none; }
+.bill-lines .line { padding: 11px 0; }
 @keyframes draw { to { stroke-dashoffset: 0; } }
 @keyframes ring { 0% { transform: scale(.8); opacity: .7; } 100% { transform: scale(1.6); opacity: 0; } }
 

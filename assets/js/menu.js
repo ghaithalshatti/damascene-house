@@ -441,19 +441,20 @@ function showTicket() {
 }
 
 // Success bubble.
-function celebrate(title, sub) {
+function celebrate(title, sub, { icon = 'check', tone = '', ms = 3200, onClose } = {}) {
   const el = document.createElement('div');
-  el.className = 'done-pop';
+  el.className = `done-pop${tone ? ` done-pop--${tone}` : ''}`;
   el.innerHTML = `<div class="done-pop__card" role="status">
-    <div class="done-pop__ic">${ICONS.check}</div>
+    <div class="done-pop__ic">${ICONS[icon]}</div>
     <b>${esc(title)}</b>
     ${TABLE ? `<span class="chip">${ICONS.table}${esc(t('table', { n: TABLE }))}</span>` : ''}
     <p>${esc(sub)}</p></div>`;
   document.body.append(el);
   requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('in')));
-  const close = () => { el.classList.remove('in'); setTimeout(() => el.remove(), 350); };
+  let closed = false;
+  const close = () => { if (closed) return; closed = true; el.classList.remove('in'); setTimeout(() => { el.remove(); onClose?.(); }, 350); };
   el.onclick = close;
-  setTimeout(close, 3200);
+  setTimeout(close, ms);
 }
 
 /* ---------- live ordering (Firebase) ---------- */
@@ -474,7 +475,39 @@ function saveMine(touch = false) {
   ls.set(MINE_KEY, { t: S.mineT, table: TABLE, phone: myPhone(), list: S.mine });
 }
 const myOrders = () => S.mine.filter((x) => x.type === 'order');
-const myTotal = () => myOrders().filter((x) => !x.paid).reduce((a, x) => a + (x.total || 0), 0);
+const myTotal = () => myBill().total;
+// This phone's invoice: its unpaid orders, identical dishes merged, priced from the menu (as the staff screen does).
+// (The guest's phone can only read its own requests — the waiter sees the whole table's total.)
+function myBill() {
+  const map = new Map(); let orders = 0;
+  for (const o of myOrders().filter((x) => !x.paid)) {
+    orders++;
+    if (!o.items) { map.set(o.id, { name: t('order_n', { n: orders }), size: '', qty: 1, price: o.total || 0 }); continue; }
+    for (const l of o.items) {
+      const it = findItem(l.id); const sz = it && l.si > -1 ? it.sizes[l.si] : null;
+      const price = it ? (it.sizes.length ? (sz ? sz.price : l.price) : it.price) : l.price;
+      const key = `${l.id}|${l.si}|${price}`;
+      const row = map.get(key) || { name: it ? tx(it.name) : '…', size: sz ? tx(sz.name) : '', qty: 0, price };
+      row.qty += l.qty || 1; map.set(key, row);
+    }
+  }
+  const lines = [...map.values()].map((r) => ({ ...r, amount: r.price * r.qty }));
+  return { lines, orders, total: lines.reduce((a, r) => a + r.amount, 0) };
+}
+function openBill() {
+  const bill = myBill();
+  const sheet = infoSheet;
+  sheet.innerHTML = `<div class="sheet__panel" role="dialog" aria-modal="true"><div class="sheet__grip"></div>
+    <div class="sheet__head"><div><h2>${esc(t('bill_title'))}</h2><p class="hint">${TABLE ? `<bdi>${esc(t('table', { n: TABLE }))}</bdi> · ` : ''}<bdi>${esc(t('bill_orders', { n: bill.orders }))}</bdi></p></div>
+      <button class="icon-btn" data-close aria-label="${esc(t('close'))}">${ICONS.close}</button></div>
+    <div class="sheet__body"><div class="lines bill-lines">${bill.lines.map((l) => `<div class="line">
+      <div><div class="line__name">${esc(l.name)}${l.size ? ` <span class="line__size">(${esc(l.size)})</span>` : ''}</div>
+        <div class="line__size"><bdi class="num">${esc(l.qty)}</bdi> × <bdi class="num">${esc(fmt(l.price))}</bdi></div></div>
+      <span class="line__price num">${esc(fmt(l.amount))}</span></div>`).join('')}</div></div>
+    <div class="sheet__foot"><div class="totals"><span>${esc(t('bill_total'))}</span><span class="num">${esc(fmt(bill.total))}</span></div>
+      <p class="hint" style="text-align:center">${esc(t(S.billAsked ? 'bill_hint' : 'bill_hint_mine'))}</p></div></div>`;
+  openSheet(sheet);
+}
 
 async function sendOrder(btn) {
   if (!S.cart.length) return;
@@ -486,7 +519,7 @@ async function sendOrder(btn) {
     });
     const total = cartTotal();
     const id = await sendRequest(S.config, { type: 'order', ...(await who()), items, total });
-    S.mine.push({ id, type: 'order', total, at: Date.now(), status: 'new' }); saveMine(true);
+    S.mine.push({ id, type: 'order', total, at: Date.now(), status: 'new', items: items.map(({ id: i, si, qty, price }) => ({ id: i, si, qty, price })) }); saveMine(true);
     S.cart = []; saveCart(); updateCartUI();
     closeSheet(cartSheet);
     celebrate(t('order_sent'), t('order_sent_sub'));
@@ -500,7 +533,13 @@ async function sendOrder(btn) {
 
 async function serviceCall(type) {
   const wait = (S.cooldown[type] || 0) - Date.now();
-  if (wait > 0) { toast(t('call_wait', { s: Math.ceil(wait / 1000) }), 'err'); return; }
+  if (wait > 0) {
+    // Asked for the bill a moment ago: show the invoice again instead of a "wait" message.
+    if (type === 'bill') { openBill(); return; }
+    toast(t('call_wait', { s: Math.ceil(wait / 1000) }), 'err'); return;
+  }
+  // Nothing ordered (or all paid): nothing to bring — say so instead of calling the waiter for nothing.
+  if (type === 'bill' && !(myTotal() > 0)) { celebrate(t('no_bill'), t('no_bill_sub'), { icon: 'receipt', tone: 'info', ms: 4500 }); return; }
   const q = type === 'waiter' ? t('call_waiter_q') : t('ask_bill_q', { total: fmt(myTotal()) });
   if (!(await confirmDialog(q, { okText: t(type === 'waiter' ? 'call_waiter' : 'ask_bill') }))) return;
   try {
@@ -508,7 +547,10 @@ async function serviceCall(type) {
     const id = await sendRequest(S.config, type === 'bill' ? { type, ...w, total: myTotal() } : { type, ...w });
     S.mine.push({ id, type, at: Date.now() }); saveMine(true);
     S.cooldown[type] = Date.now() + 45e3;
-    celebrate(t(type === 'waiter' ? 'waiter_sent' : 'bill_sent'), t(type === 'waiter' ? 'waiter_sent_sub' : 'bill_sent_sub'));
+    if (type === 'waiter') { celebrate(t('waiter_sent'), t('waiter_sent_sub')); return; }
+    // Bill: confirm it was sent, then show the invoice so the guest can get the money ready.
+    S.billAsked = true;
+    celebrate(t('bill_sent'), t('bill_sent_sub'), { ms: 2200, onClose: openBill });
   } catch (e) { await requestFailed(e); }
 }
 
@@ -635,8 +677,10 @@ function openMine() {
     <div class="sheet__body"><div class="lines">${list.map((x, i) => `<div class="line">
       <div><div class="line__name">${esc(t('order_n', { n: list.length - i }))}</div><div class="line__size num">${esc(new Date(x.at).toLocaleTimeString(getLang() === 'ar' ? 'ar-SY' : 'en-GB', { hour: '2-digit', minute: '2-digit' }))}</div></div>
       <div style="display:grid;justify-items:end;gap:4px"><span class="line__price num">${esc(fmt(x.total))}</span><span class="st st--${x.status || 'new'}">${esc(t(`st_${x.status || 'new'}`))}</span></div></div>`).join('')}</div></div>
-    <div class="sheet__foot"><div class="totals" style="margin:0"><span>${esc(t('total'))}</span><span class="num">${esc(fmt(myTotal()))}</span></div></div></div>`;
+    <div class="sheet__foot"><div class="totals" style="margin:0"><span>${esc(t('total'))}</span><span class="num">${esc(fmt(myTotal()))}</span></div>
+      ${myTotal() > 0 ? `<button class="btn btn--ghost btn--block" id="seeBill" style="margin-top:10px">${ICONS.receipt}${esc(t('bill_title'))}</button>` : ''}</div></div>`;
   openSheet(sheet);
+  sheet.querySelector('#seeBill')?.addEventListener('click', () => { closeSheet(sheet); setTimeout(openBill, 320); });
 }
 
 /* ---------- info sheet ---------- */
