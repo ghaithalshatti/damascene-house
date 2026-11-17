@@ -181,6 +181,12 @@ export async function settleTable(cfg, table, orders, bill, me) {
   b.set(m.doc(db, 'tables', String(table)), { since: now }, { merge: true });
   await b.commit();
 }
+// The table's full invoice, written into the guest's bill request by the staff screen: the guest's phone
+// can only read its own requests, so this is how it gets the whole table's bill.
+export async function writeInvoice(cfg, billId, invoice) {
+  const { m, db } = await full(cfg);
+  await m.updateDoc(m.doc(db, 'orders', billId), { invoice });
+}
 // Fake request (nobody at the table): every unpaid request of that phone at the table is voided (hidden
 // everywhere) and the phone can't order for this table for BLOCK_HOURS.
 export async function rejectPhone(cfg, table, phone, docs) {
@@ -239,6 +245,8 @@ service cloud.firestore {
     function staffKeysOnly() { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'paid', 'paidAt', 'type', 'claimedBy', 'claimedName']); }
     // A colleague may still mark someone else's request paid (the table's «Paid») or reject it.
     function payOnly() { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['paid', 'paidAt', 'status', 'updatedAt']) && request.resource.data.get('paid', false) == true; }
+    // Any staff screen fills in the table's invoice on a bill request.
+    function invoiceOnly() { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['invoice']) && resource.data.type == 'bill' && request.resource.data.invoice is map; }
     function voidOnly() { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['type', 'status', 'updatedAt']) && request.resource.data.type == 'void' && resource.data.get('paid', false) != true; }
 
     match /tables/{t} {
@@ -259,7 +267,7 @@ service cloud.firestore {
       allow get: if true;
       allow list: if isStaff();
       allow delete: if isManager();
-      allow update: if isManager() || (isStaff() && staffKeysOnly() && (request.resource.data.type == resource.data.type || voidOnly()) && (
+      allow update: if isManager() || (isStaff() && invoiceOnly()) || (isStaff() && staffKeysOnly() && (request.resource.data.type == resource.data.type || voidOnly()) && (
         (claim(resource.data) == '' && (claimSelf() || sameClaim()))
         || (claim(resource.data) == request.auth.uid && sameClaim())
         || (sameClaim() && (payOnly() || voidOnly()))));

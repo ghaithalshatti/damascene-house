@@ -42,6 +42,7 @@ async function boot() {
   });
   CART_TTL = sessionHours(S.config) * 3600e3;
   initSession();
+  infoSheet.addEventListener('sheet:closed', () => { S.billShown = false; clearTimeout(invTimer); });
   loadCart();
   loadMine();
   render();
@@ -494,8 +495,41 @@ function myBill() {
   const lines = [...map.values()].map((r) => ({ ...r, amount: r.price * r.qty }));
   return { lines, orders, total: lines.reduce((a, r) => a + r.amount, 0) };
 }
+// The table's full invoice arrives from the staff screen inside this phone's bill request: while waiting it is
+// read every 3 s (at most 30 s, only while the invoice is open); once it is here, reading stops. Opening the
+// invoice again reads it once (the staff update it if more was ordered after the bill request).
+const lastBillId = () => [...S.mine].reverse().find((x) => x.type === 'bill')?.id || '';
+const billOpen = () => !!S.billShown && !!infoSheet.querySelector('.bill-lines');
+let invTimer = 0;
+function tableBill() {
+  const id = lastBillId();
+  if (!id || S.inv?.id !== id) return null;
+  const lines = S.inv.lines.map((l) => {
+    const it = findItem(l.id); const sz = it && l.si > -1 ? it.sizes[l.si] : null;
+    return { name: it ? tx(it.name) : l.name, size: sz ? tx(sz.name) : l.size || '', qty: l.qty, price: l.price, amount: l.qty * l.price };
+  });
+  return { lines, orders: S.inv.orders, total: S.inv.total, table: true };
+}
+async function fetchInvoice(start) {
+  clearTimeout(invTimer);
+  const id = lastBillId(); if (!id) return;
+  try {
+    const d = await getRequest(S.config, id);
+    if (d?.invoice?.lines) { S.inv = { id, ...d.invoice }; S.invWait = false; if (billOpen()) renderBill(); return; }
+  } catch {}
+  if (billOpen() && Date.now() - start < 30000) { S.invWait = true; invTimer = setTimeout(() => fetchInvoice(start), 3000); }
+  else { S.invWait = false; if (billOpen()) renderBill(); }
+}
 function openBill() {
-  const bill = myBill();
+  S.invWait = !!lastBillId() && !tableBill();
+  renderBill();
+  openSheet(infoSheet);
+  S.billShown = true;
+  fetchInvoice(Date.now());
+}
+function renderBill() {
+  const bill = tableBill() || myBill();
+  const hint = bill.table ? 'bill_hint' : S.invWait ? 'bill_loading' : S.billAsked ? 'bill_hint' : 'bill_hint_mine';
   const sheet = infoSheet;
   sheet.innerHTML = `<div class="sheet__panel" role="dialog" aria-modal="true"><div class="sheet__grip"></div>
     <div class="sheet__head"><div><h2>${esc(t('bill_title'))}</h2><p class="hint">${TABLE ? `<bdi>${esc(t('table', { n: TABLE }))}</bdi> · ` : ''}<bdi>${esc(t('bill_orders', { n: bill.orders }))}</bdi></p></div>
@@ -505,8 +539,7 @@ function openBill() {
         <div class="line__size"><bdi class="num">${esc(l.qty)}</bdi> × <bdi class="num">${esc(fmt(l.price))}</bdi></div></div>
       <span class="line__price num">${esc(fmt(l.amount))}</span></div>`).join('')}</div></div>
     <div class="sheet__foot"><div class="totals"><span>${esc(t('bill_total'))}</span><span class="num">${esc(fmt(bill.total))}</span></div>
-      <p class="hint" style="text-align:center">${esc(t(S.billAsked ? 'bill_hint' : 'bill_hint_mine'))}</p></div></div>`;
-  openSheet(sheet);
+      <p class="hint" style="text-align:center">${S.invWait ? '<span class="spinner" style="width:13px;height:13px;vertical-align:-2px"></span> ' : ''}${esc(t(hint))}</p></div></div>`;
 }
 
 async function sendOrder(btn) {

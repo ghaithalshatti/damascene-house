@@ -1,6 +1,6 @@
 // Staff screen: live orders, waiter calls and bill requests for today.
 import { loadSite, initLang, setLang, getLang, t, tx, esc, applyTheme, formatPrice, ICONS, ls, toast, checkOrder, confirmDialog } from './core.js';
-import { fbEnabled, currentStaff, staffLogin, staffMe, staffSignOut, watchToday, setStatus, settleTable, rejectPhone } from './fb.js';
+import { fbEnabled, currentStaff, staffLogin, staffMe, staffSignOut, watchToday, setStatus, settleTable, rejectPhone, writeInvoice } from './fb.js';
 
 const app = document.getElementById('app');
 const S = { config: null, menu: null, me: null, docs: [], filter: 'all', showDone: false, sound: ls.get('rm:staffSound', true), unsub: null, first: true, fresh: new Set(), audio: null, error: false };
@@ -110,6 +110,35 @@ function onSnap(snap) {
     ring();
   }
   renderList();
+  syncInvoices();
+}
+
+// Open bill requests get the table's full invoice written into them (the guest's phone shows it): every unpaid
+// order of the table from every phone, priced from the menu, identical dishes merged. Rewritten if orders change.
+const invSent = new Map();
+function tableInvoice(table) {
+  const map = new Map(); const orders = tableOrders(table);
+  for (const o of orders) {
+    const c = checked(o);
+    (o.items || []).forEach((l, i) => {
+      const ln = c.lines[i]; const si = Number.isInteger(l.si) ? l.si : -1;
+      const key = `${l.id}|${si}|${ln.price}`;
+      const r = map.get(key) || { id: String(l.id || ''), si, name: ln.name, size: ln.size, qty: 0, price: ln.price };
+      r.qty += ln.qty; map.set(key, r);
+    });
+  }
+  const lines = [...map.values()];
+  return { lines, orders: orders.length, total: lines.reduce((a, r) => a + r.price * r.qty, 0) };
+}
+function syncInvoices() {
+  if (!S.menu || !S.me) return;
+  for (const b of S.docs.filter((d) => d.type === 'bill' && d.status !== 'done')) {
+    const inv = tableInvoice(b.table);
+    const sig = `${inv.orders}|${inv.total}`;
+    if ((b.invoice && `${b.invoice.orders}|${b.invoice.total}` === sig) || invSent.get(b.id) === sig) continue;
+    invSent.set(b.id, sig); // once per change, also when it fails (e.g. old rules)
+    writeInvoice(S.config, b.id, inv).catch((e) => console.error(e));
+  }
 }
 
 function renderShell(gesture) {
@@ -179,7 +208,7 @@ async function refreshMenu(force = false) {
   if (!force && Date.now() - menuAt < 5 * 60e3) return;
   if (force && Date.now() - menuAt < 30e3) return;
   menuAt = Date.now();
-  try { S.menu = (await loadSite()).menu; renderList(); } catch {}
+  try { S.menu = (await loadSite()).menu; renderList(); syncInvoices(); } catch {}
 }
 
 function renderList() {
